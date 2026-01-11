@@ -87,11 +87,11 @@ class VaultKey<T> {
 
   /// Reads the value and returns [defaultValue] if not found.
   Future<T> readSafe(T defaultValue) async {
-    return (await read<T>()) ?? defaultValue;
+    return (await read()) ?? defaultValue;
   }
 
   /// Reads the value from storage.
-  Future<V?> read<V>() async {
+  Future<T?> read() async {
     await vault._ensureInitialized;
 
     try {
@@ -147,7 +147,7 @@ class VaultKey<T> {
   /// Atomically updates the stored value using [updateFn].
   Future<void> update(T Function(T? currentValue) updateFn) async {
     try {
-      final currentValue = await read<T>();
+      final currentValue = await read();
       final newValue = updateFn(currentValue);
       await write(newValue);
     } on VaultException<T> catch (e) {

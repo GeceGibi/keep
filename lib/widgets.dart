@@ -24,7 +24,7 @@ class VaultBuilder<T> extends StatelessWidget {
       stream: vaultKey.stream,
       builder: (context, snapshot) {
         return FutureBuilder(
-          future: vaultKey.read<T>(),
+          future: vaultKey.read(),
           builder: (context, snapshot) {
             return builder(context, snapshot.data);
           },

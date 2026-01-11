@@ -40,18 +40,34 @@ class VaultKeySecure<T> extends VaultKey<T> {
 
   /// Reads, decrypts, and deserializes the value from storage.
   @override
-  Future<V?> read<V>() async {
+  Future<T?> read() async {
     await vault._ensureInitialized;
 
-    final data = await super.read<String>();
+    try {
+      final encryptedData = switch (useExternalStorage) {
+        true => await vault._external.read<String>(this),
+        false => vault._internal.read<String>(this),
+      };
 
-    if (data == null) {
+      if (encryptedData == null) {
+        return null;
+      }
+
+      final decrypted = vault.encrypter.decrypt(encryptedData);
+      final json = jsonDecode(decrypted);
+      return fromStorage(json);
+    } catch (error, stackTrace) {
+      final exception = toException(
+        error.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      vault.onError?.call(exception);
+
+      unawaited(remove());
       return null;
     }
-
-    final decrypted = vault.encrypter.decrypt(data);
-    final json = jsonDecode(decrypted);
-    return fromStorage(json) as V?;
   }
 
   /// Serializes, encrypts, and writes the value to storage.
