@@ -1,211 +1,84 @@
-//
-// ignore_for_file: specify_nonobvious_property_types
+library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:crypto/crypto.dart';
-import 'package:encrypt/encrypt.dart' as encrypt_lib;
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/material.dart';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
-
-part 'storage.dart';
-part 'security.dart';
-part 'builders.dart';
-part 'keys.dart';
-part 'errors.dart';
-part 'worker.dart';
 part 'widgets.dart';
+part 'vault_key.dart';
+part 'vault_memory.dart';
+part 'vault_storage.dart';
+part 'vault_key_creator.dart';
 
-/// Local data storage service
+/// Simple, Singleton-based Vault storage with Field-Level Encryption support.
 class Vault {
   Vault({
-    required this.fileVault,
-    required this.secureKey,
-    this.storageName = 'main',
-    this.onError,
-  });
+    this.encrypter,
+    VaultStorage? externalStorage,
+  }) : external = externalStorage ?? DefaultVaultExternalStorage();
 
-  final FileVaultBase fileVault;
-  final String secureKey;
-  final String storageName;
-  final void Function(Object error)? onError;
+  final VaultEncrypter? encrypter;
 
-  late final key = KeyCreator(this);
-  late final secure = SecureKeyCreator(this);
+  String _path = '/';
+  String _folderName = 'vault';
+  Directory get root => Directory('$_path/$_folderName');
 
-  final _keys = <VaultKey<dynamic>>[];
-  List<VaultKey<dynamic>> get keys => List.unmodifiable(_keys);
+  final StreamController<VaultKey<dynamic>> _controller =
+      StreamController<VaultKey<dynamic>>.broadcast();
 
-  Map<String, dynamic> _memCache = {};
-  File? _mainStorageFile;
-  final _controller = StreamController<MapEntry<VaultKey, dynamic>>.broadcast();
-  Timer? _saveDebounce;
+  Stream<VaultKey<dynamic>> get onChange => _controller.stream;
 
-  void dispose() {
-    _saveDebounce?.cancel();
-    _controller.close();
+  /// User can override this to provide their own external storage
+  final VaultStorage external;
+
+  /// Core storage for memory-based vault
+  final internal = _VaultInternalStorage();
+
+  /// Key Manager
+  VaultKeyManager get key => VaultKeyManager(vault: this);
+
+  Future<void> init({String path = '/', String folderName = 'vault'}) async {
+    _path = path;
+    _folderName = folderName;
+
+    await encrypter?.init();
+
+    await root.create(recursive: true);
+
+    await Future.wait([
+      internal.init(this),
+      external.init(this),
+    ]);
   }
 
-  Future<void> init() async {
-    // Forward FileVault errors to main error handler
-    fileVault.onError = (e, s) {
-      onError?.call(VaultException('FileVault error', error: e, stackTrace: s));
-    };
-
-    try {
-      await fileVault.init();
-      _mainStorageFile = File('${fileVault.root.path}/$storageName.vault');
-
-      if (!_mainStorageFile!.existsSync()) {
-        await _mainStorageFile!.create(recursive: true);
-        await _mainStorageFile!.writeAsString('{}');
-        _memCache = {};
-      } else {
-        final content = await _mainStorageFile!.readAsString();
-        if (content.isNotEmpty) {
-          try {
-            _memCache = jsonDecode(content) as Map<String, dynamic>;
-          } catch (error, stackTrace) {
-            _memCache = {};
-            onError?.call(
-              VaultException(
-                'Corrupted, resetting.',
-                error: error,
-                stackTrace: stackTrace,
-              ),
-            );
-          }
-        }
-      }
-    } catch (e, s) {
-      onError?.call(VaultException('Init failed', error: e, stackTrace: s));
-      rethrow;
-    }
+  /// Key Operations
+  ///
+  FutureOr<bool> exists<T>(VaultKey<T> key) async {
+    return key.useExternalStorage
+        ? await external.exists(key)
+        : internal.exists(key);
   }
 
-  void _register(VaultKey key) => _keys.add(key);
-
-  Future<T?> readKey<T>(VaultKey<T> key) async {
-    try {
-      String? payload;
-
-      if (key.useFileSystem) {
-        // Direct async read (Performance is fine for typical use cases)
-        payload = await fileVault.read(key.name);
-      } else {
-        payload = _memCache[key.name] as String?;
-      }
-
-      if (payload == null) return null;
-      final decodable = await key.decrypt(payload);
-      if (decodable.isEmpty) return null;
-
-      final decodedJson = jsonDecode(decodable);
-      return key.fromStorage(decodedJson);
-    } catch (e, s) {
-      onError?.call(key.toException('Read failed', error: e, stackTrace: s));
-      return null;
-    }
-  }
-
-  Future<void> writeKey<T>(VaultKey<T> key, T value) async {
-    if (value == null) {
-      await removeKey(key);
-      return;
+  FutureOr<void> remove<T>(VaultKey<T> key) async {
+    if (key.useExternalStorage) {
+      return await external.remove(key);
     }
 
-    try {
-      final jsonDto = key.toStorage(value);
-      final rawString = jsonEncode(jsonDto);
-      final payload = await key.encrypt(rawString);
-
-      if (key.useFileSystem) {
-        final ioPayload = _IsolateFileOpPayload(
-          rootPath: fileVault.root.path,
-          keyName: key.name,
-          valuePayload: payload,
-        );
-        // Using compute
-        await compute(_isolateWriteFileSystem, ioPayload);
-      } else {
-        _memCache[key.name] = payload;
-        await _saveMemCache();
-      }
-      _controller.add(MapEntry(key, value));
-    } catch (e, s) {
-      onError?.call(key.toException('Write failed', error: e, stackTrace: s));
-    }
+    return internal.remove(key);
   }
 
-  Future<void> _saveMemCache() async {
-    if (_mainStorageFile == null) return;
-    _saveDebounce?.cancel();
-
-    _saveDebounce = Timer(const Duration(milliseconds: 50), () async {
-      try {
-        final payload = _IsolateSavePayload(
-          path: _mainStorageFile!.path,
-          data: _memCache,
-        );
-        await compute(_isolateSaveVault, payload);
-      } catch (e, s) {
-        onError?.call(
-          VaultException('Persistence failed', error: e, stackTrace: s),
-        );
-      }
-    });
+  Future<void> clear() async {
+    internal.clear();
+    await external.clear();
   }
+}
 
-  Future<void> removeKey(VaultKey key) async {
-    try {
-      if (key.useFileSystem) {
-        await fileVault.remove(key.name);
-      } else {
-        _memCache.remove(key.name);
-        await _saveMemCache();
-      }
-      _controller.add(MapEntry(key, null));
-    } catch (e, s) {
-      onError?.call(key.toException('Remove failed', error: e, stackTrace: s));
-    }
-  }
-
-  Future<bool> keyExists(VaultKey key) async {
-    try {
-      if (key.useFileSystem) return fileVault.exists(key.name);
-      return _memCache.containsKey(key.name);
-    } catch (e, s) {
-      onError?.call(key.toException('Exists failed', error: e, stackTrace: s));
-      return false;
-    }
-  }
-
-  Future<void> clear({bool force = false}) async {
-    try {
-      await fileVault.clear();
-      if (force) {
-        _memCache.clear();
-        await _saveMemCache();
-        return;
-      }
-      for (final key in _keys) {
-        if (key.removable) await removeKey(key);
-      }
-    } catch (e, s) {
-      onError?.call(VaultException('Clear failed', error: e, stackTrace: s));
-    }
-  }
-
-  Stream<T?> listen<T>(VaultKey<T> key) {
-    return _controller.stream
-        .where((event) => event.key.name == key.name)
-        .map((event) => event.value as T?);
-  }
-
-  /// Global stream of all changes
-  Stream<MapEntry<VaultKey, dynamic>> get events => _controller.stream;
+abstract class VaultEncrypter {
+  const VaultEncrypter();
+  Future<void> init();
+  String encrypt(String data);
+  String decrypt(String data);
 }
