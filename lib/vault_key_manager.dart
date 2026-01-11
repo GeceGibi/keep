@@ -43,7 +43,13 @@ class VaultKeyManager {
       removable: removable,
       useExternalStorage: useExternalStorage,
       toStorage: (value) => value,
-      fromStorage: (value) => value as int?,
+      fromStorage: (value) {
+        return switch (value) {
+          int() => value,
+          String() => int.parse(value),
+          _ => null,
+        };
+      },
     );
   }
 }

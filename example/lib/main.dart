@@ -70,13 +70,9 @@ class _DashboardPageState extends State<DashboardPage> {
   String? memory;
 
   Future<void> readValue() async {
-    value = await storage.test.read();
     file = storage.internal.rootFile.readAsStringSync();
     memory = storage.internal.memory.toString();
-
     setState(() {});
-
-    print(value);
   }
 
   @override
@@ -92,30 +88,24 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       body: ListView(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(value.toString()),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () async {
-                  await storage.test.update((s) => (s ?? 0) + 1);
-                  readValue();
-                },
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              await storage.test.update((s) => (s ?? 0) + 1);
+              await storage.testSecure.update((s) => (s ?? 0) + 1);
+              readValue();
+            },
           ),
           VaultBuilder(
             vaultKey: storage.test,
             builder: (context, value) {
-              return Text(value.toString());
+              return Text('test: $value');
             },
           ),
           VaultBuilder(
             vaultKey: storage.testSecure,
             builder: (context, value) {
-              return Text(value.toString());
+              return Text('test-secure: $value');
             },
           ),
           Text(file ?? ''),

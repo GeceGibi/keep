@@ -5,9 +5,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:encrypt/encrypt.dart' as encrypt_lib;
 import 'package:flutter/material.dart';
 
 part 'widgets.dart';
+part 'vault_encrypter.dart';
 part 'vault_key.dart';
 part 'vault_memory.dart';
 part 'vault_storage.dart';
@@ -17,11 +19,12 @@ part 'vault_key_secure.dart';
 /// Simple, Singleton-based Vault storage with Field-Level Encryption support.
 class Vault {
   Vault({
-    this.encrypter,
+    VaultEncrypter? encrypter,
     VaultStorage? externalStorage,
-  }) : external = externalStorage ?? DefaultVaultExternalStorage();
+  }) : external = externalStorage ?? DefaultVaultExternalStorage(),
+       encrypter = encrypter ?? DefaultVaultEncrypter(secureKey: '0' * 32);
 
-  final VaultEncrypter? encrypter;
+  final VaultEncrypter encrypter;
 
   String _path = '/';
   String _folderName = 'vault';
@@ -45,7 +48,7 @@ class Vault {
     _path = path;
     _folderName = folderName;
 
-    await encrypter?.init();
+    await encrypter.init();
 
     await root.create(recursive: true);
 
@@ -75,11 +78,4 @@ class Vault {
     internal.clear();
     await external.clear();
   }
-}
-
-abstract class VaultEncrypter {
-  const VaultEncrypter();
-  Future<void> init();
-  String encrypt(String data);
-  String decrypt(String data);
 }

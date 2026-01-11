@@ -46,11 +46,11 @@ class VaultKey<T> {
   }
 
   Future<T> readSafe(T defaultValue) async {
-    return (await read()) ?? defaultValue;
+    return (await read<T>()) ?? defaultValue;
   }
 
   /// Reads value from storage
-  Future<T?> read() async {
+  Future<V?> read<V>() async {
     try {
       return switch (useExternalStorage) {
         true => await vault.external.read(this),
@@ -63,7 +63,7 @@ class VaultKey<T> {
   }
 
   /// Writes value to storage
-  Future<void> write(T value) async {
+  Future<void> write(Object? value) async {
     vault._controller.add(this);
 
     if (value == null) {
@@ -82,8 +82,9 @@ class VaultKey<T> {
 
   /// Updates the stored value using a callback function.
   Future<void> update(T Function(T? currentValue) updateFn) async {
-    final currentValue = await read();
+    final currentValue = await read<T>();
     final newValue = updateFn(currentValue);
+
     await write(newValue);
   }
 
