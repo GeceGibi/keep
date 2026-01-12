@@ -56,7 +56,7 @@ class DefaultVaultExternalStorage extends VaultStorage {
       return _withQueue(key.name, () async {
         final file = getEntry<File>(key);
 
-        if (!exists(key)) {
+        if (!existsSync(key)) {
           return null;
         }
 
@@ -106,7 +106,7 @@ class DefaultVaultExternalStorage extends VaultStorage {
   bool existsSync(VaultKey<dynamic> key) => getEntry<File>(key).existsSync();
 
   @override
-  bool exists(VaultKey<dynamic> key) {
+  Future<bool> exists(VaultKey<dynamic> key) async {
     try {
       return getEntry<File>(key).existsSync();
     } on VaultException<dynamic> catch (e) {
@@ -147,7 +147,7 @@ class DefaultVaultExternalStorage extends VaultStorage {
     try {
       final file = getEntry<File>(key);
 
-      if (!exists(key)) {
+      if (!existsSync(key)) {
         return;
       }
 

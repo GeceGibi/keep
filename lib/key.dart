@@ -45,10 +45,10 @@ class VaultKey<T> {
 
     try {
       if (useExternalStorage) {
-        return vault._external.exists(this);
+        return vault.external.exists(this);
       }
 
-      return vault._internal.exists(this);
+      return vault.internal.exists(this);
     } catch (e, s) {
       final exception = toException(
         e.toString(),
@@ -66,10 +66,10 @@ class VaultKey<T> {
   bool get existsSync {
     try {
       if (useExternalStorage) {
-        return vault._external.existsSync(this);
+        return vault.external.existsSync(this);
       }
 
-      return vault._internal.existsSync(this);
+      return vault.internal.existsSync(this);
     } catch (e, s) {
       final exception = toException(
         e.toString(),
@@ -89,9 +89,9 @@ class VaultKey<T> {
 
     try {
       if (useExternalStorage) {
-        await vault._external.remove(this);
+        await vault.external.remove(this);
       } else {
-        vault._internal.remove(this);
+        vault.internal.remove(this);
       }
     } catch (e, s) {
       final exception = toException(
@@ -126,8 +126,8 @@ class VaultKey<T> {
   T? readSync() {
     try {
       return switch (useExternalStorage) {
-        true => vault._external.readSync(this),
-        false => vault._internal.readSync(this),
+        true => vault.external.readSync(this),
+        false => vault.internal.readSync(this),
       };
     } catch (error, stackTrace) {
       final exception = toException(
@@ -149,8 +149,8 @@ class VaultKey<T> {
 
     try {
       return switch (useExternalStorage) {
-        true => await vault._external.read(this),
-        false => vault._internal.read(this),
+        true => await vault.external.read(this),
+        false => vault.internal.read(this),
       };
     } catch (error, stackTrace) {
       final exception = toException(
@@ -180,9 +180,9 @@ class VaultKey<T> {
 
     try {
       if (useExternalStorage) {
-        await vault._external.write(this, value);
+        await vault.external.write(this, value);
       } else {
-        vault._internal.write(this, value);
+        vault.internal.write(this, value);
       }
     } catch (error, stackTrace) {
       final exception = toException(

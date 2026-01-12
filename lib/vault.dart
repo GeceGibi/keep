@@ -30,7 +30,7 @@ class Vault {
     this.onError,
     VaultEncrypter? encrypter,
     VaultStorage? externalStorage,
-  }) : _external = externalStorage ?? DefaultVaultExternalStorage(),
+  }) : external = externalStorage ?? DefaultVaultExternalStorage(),
        encrypter = encrypter ?? SimpleVaultEncrypter(secureKey: '0' * 32);
 
   /// The encrypter used for [VaultKeySecure].
@@ -38,7 +38,7 @@ class Vault {
   final VaultEncrypter encrypter;
 
   /// External storage implementation for large datasets.
-  final VaultStorage _external;
+  final VaultStorage external;
 
   /// Callback invoked when a [VaultException] occurs.
   void Function(VaultException<dynamic> exception)? onError;
@@ -60,7 +60,7 @@ class Vault {
   Stream<VaultKey<dynamic>> get onChange => _controller.stream;
 
   /// Core storage for memory-based vault (main metadata and small values).
-  final _internal = _VaultInternalStorage();
+  final internal = _VaultInternalStorage();
 
   /// Completer for initialization.
   final Completer<void> _initCompleter = Completer<void>();
@@ -98,8 +98,8 @@ class Vault {
     await root.create(recursive: true);
 
     await Future.wait([
-      _internal.init(this),
-      _external.init(this),
+      internal.init(this),
+      external.init(this),
     ]);
 
     _initCompleter.complete();
@@ -117,8 +117,8 @@ class Vault {
 
   /// Clears all data from both internal and external storage.
   Future<void> clear() async {
-    await _external.clear();
-    _internal.clear();
+    await external.clear();
+    internal.clear();
 
     // Notify all keys
     _keys.forEach(_controller.add);

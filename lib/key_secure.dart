@@ -45,8 +45,8 @@ class VaultKeySecure<T> extends VaultKey<T> {
 
     try {
       final encryptedData = switch (useExternalStorage) {
-        true => await vault._external.read<String>(this),
-        false => vault._internal.read<String>(this),
+        true => await vault.external.read<String>(this),
+        false => vault.internal.read<String>(this),
       };
 
       if (encryptedData == null) {
@@ -87,9 +87,9 @@ class VaultKeySecure<T> extends VaultKey<T> {
     vault._controller.add(this);
 
     if (useExternalStorage) {
-      await vault._external.write(this, encrypted);
+      await vault.external.write(this, encrypted);
     } else {
-      vault._internal.write(this, encrypted);
+      vault.internal.write(this, encrypted);
     }
   }
 }
