@@ -158,6 +158,42 @@ All public APIs are documented with Dartdoc comments. Key classes:
 - **`VaultEncrypter`** – Interface for encryption implementations.
 - **`VaultBuilder`** – Reactive widget for UI updates.
 
+## Custom Encryption
+
+You can implement `VaultEncrypter` to provide your own encryption logic (e.g., AES).
+For heavy operations, use `Isolate.run` in async methods to keep the UI smooth.
+
+```dart
+class AesEncrypter extends VaultEncrypter {
+  @override
+  Future<void> init() async {
+    // Initialize keys...
+  }
+
+  @override
+  FutureOr<String> encrypt(String data) {
+    // Offload heavy encryption to an isolate
+    return Isolate.run(() => encryptSync(data));
+  }
+
+  @override
+  String encryptSync(String data) {
+    // Implement synchronous encryption logic
+    return _aesEncrypt(data);
+  }
+
+  @override
+  FutureOr<String> decrypt(String data) {
+    return Isolate.run(() => decryptSync(data));
+  }
+
+  @override
+  String decryptSync(String data) {
+    return _aesDecrypt(data);
+  }
+}
+```
+
 ## Planned Features
 
 - [ ] Custom serialization support for `VaultKey` (`fromStorage`/`toStorage`)

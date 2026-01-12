@@ -16,9 +16,8 @@ class _VaultInternalStorage extends VaultStorage {
 
     if (_rootFile.existsSync()) {
       try {
-        final content = await Isolate.run(() async {
-          return jsonDecode(await _rootFile.readAsString()) as Map;
-        });
+        final jsonContent = await _rootFile.readAsString();
+        final content = await compute(jsonDecode, jsonContent) as Map;
 
         memory = content.cast();
       } catch (error, stackTrace) {
