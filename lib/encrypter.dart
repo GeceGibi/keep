@@ -12,7 +12,7 @@ abstract class VaultEncrypter {
   Future<void> init();
 
   /// Encrypts the given [data] and returns a base64 string.
-  String encrypt(Object? data);
+  String encrypt(String data);
 
   /// Decrypts the given [data] and returns the original string content.
   String decrypt(String data);

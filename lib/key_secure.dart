@@ -54,8 +54,7 @@ class VaultKeySecure<T> extends VaultKey<T> {
       }
 
       final decrypted = vault.encrypter.decrypt(encryptedData);
-      final json = jsonDecode(decrypted);
-      return fromStorage(json);
+      return fromStorage(await compute(jsonDecode, decrypted));
     } catch (error, stackTrace) {
       final exception = toException(
         error.toString(),
@@ -80,7 +79,10 @@ class VaultKeySecure<T> extends VaultKey<T> {
       return;
     }
     final storageValue = toStorage(value);
-    final encrypted = vault.encrypter.encrypt(storageValue);
+
+    final encrypted = vault.encrypter.encrypt(
+      await compute(jsonEncode, storageValue),
+    );
 
     vault._controller.add(this);
 
