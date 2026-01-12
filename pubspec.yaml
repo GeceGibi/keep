@@ -1,6 +1,6 @@
 name: vault
 description: "Typed, reactive, encrypted local storage for Flutter."
-version: 0.0.1+3
+version: 0.0.1+4
 homepage: https://github.com/GeceGibi/vault
 
 topics:
