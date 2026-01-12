@@ -90,6 +90,13 @@ class VaultKey<T> {
     return (await read()) ?? defaultValue;
   }
 
+  /// Synchronously reads the value and returns [defaultValue] if not found.
+  ///
+  /// See [readSync] for warnings.
+  T readSafeSync(T defaultValue) {
+    return readSync() ?? defaultValue;
+  }
+
   /// Synchronously reads the value from storage.
   ///
   /// **WARNING:** This method assumes the vault is already initialized.
