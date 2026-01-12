@@ -169,7 +169,7 @@ Future<void> _testExternalStorage() async {
 Future<void> _testReactivity() async {
   print('--- Reactivity ---');
 
-  final subscription = storage.counter.stream.listen((k) async {
+  final subscription = storage.counter.listen((k) async {
     print('Stream: counter changed to ${await k.read()}');
   });
 

@@ -1,7 +1,7 @@
 part of 'vault.dart';
 
 /// Represents a typed key within the [Vault].
-class VaultKey<T> {
+class VaultKey<T> extends Stream<VaultKey<T>> {
   /// Creates a [VaultKey].
   ///
   /// [name] Unique identifier for the key.
@@ -217,11 +217,6 @@ class VaultKey<T> {
     }
   }
 
-  /// Returns a stream of value changes for this specific key.
-  Stream<VaultKey<T>> get stream {
-    return vault.onChange.where((key) => key.name == name).cast<VaultKey<T>>();
-  }
-
   /// Creates a [VaultException] for this key with the given [message].
   VaultException<T> toException(
     String message, {
@@ -234,5 +229,23 @@ class VaultKey<T> {
       error: error,
       stackTrace: stackTrace,
     );
+  }
+
+  @override
+  StreamSubscription<VaultKey<T>> listen(
+    void Function(VaultKey<T> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return vault.onChange
+        .where((key) => key.name == name)
+        .cast<VaultKey<T>>()
+        .listen(
+          onData,
+          onError: onError,
+          onDone: onDone,
+          cancelOnError: cancelOnError,
+        );
   }
 }

@@ -123,7 +123,7 @@ void main() {
   group('Reactivity', () {
     test('Stream emits events on write', () async {
       var eventCount = 0;
-      final sub = storage.counter.stream.listen((key) {
+      final sub = storage.counter.listen((key) {
         eventCount++;
         expect(key.name, storage.counter.name);
       });
