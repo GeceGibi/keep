@@ -34,6 +34,12 @@ abstract class VaultStorage {
   /// Returns a list of all raw entries in this storage.
   FutureOr<List<E>> getEntries<E>();
 
+  /// Scans the storage and removes all entries marked with the **Removable** flag.
+  ///
+  /// Implementations should respect the binary metadata flag (Bit 0) ensuring
+  /// efficient cleanup of temporary data without full content parsing.
+  Future<void> clearRemovable();
+
   /// Deletes all entries in this storage instance.
   FutureOr<void> clear();
 }

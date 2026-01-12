@@ -1,11 +1,14 @@
 part of 'vault.dart';
 
 /// Default implementation using the standard [Directory] and [File] system.
+/// Uses [VaultCodec] for binary payload serialization.
 class DefaultVaultExternalStorage extends VaultStorage {
   late Directory _root;
   late Vault _vault;
 
   final Map<String, Future<void>> _queue = {};
+
+  static const int _flagRemovable = 1;
 
   Future<T> _withQueue<T>(String key, Future<T> Function() action) async {
     final previous = _queue[key];
@@ -56,11 +59,15 @@ class DefaultVaultExternalStorage extends VaultStorage {
       return _withQueue(key.name, () async {
         final file = getEntry<File>(key);
 
-        if (!existsSync(key)) {
+        if (!await file.exists()) {
           return null;
         }
 
-        return jsonDecode(file.readAsStringSync()) as V?;
+        final bytes = await file.readAsBytes();
+        if (bytes.isEmpty) return null;
+
+        final entry = VaultCodec.decodePayload(bytes);
+        return entry?.value as V?;
       });
     } on VaultException<dynamic> catch (e) {
       _vault.onError?.call(e);
@@ -73,9 +80,20 @@ class DefaultVaultExternalStorage extends VaultStorage {
       );
 
       _vault.onError?.call(exception);
-
       throw exception;
     }
+  }
+
+  @override
+  V? readSync<V>(VaultKey<dynamic> key) {
+    final file = getEntry<File>(key);
+    if (!file.existsSync()) return null;
+
+    final bytes = file.readAsBytesSync();
+    if (bytes.isEmpty) return null;
+
+    final entry = VaultCodec.decodePayload(bytes);
+    return entry?.value as V?;
   }
 
   @override
@@ -84,7 +102,11 @@ class DefaultVaultExternalStorage extends VaultStorage {
       await _withQueue(key.name, () async {
         final file = getEntry<File>(key);
         final tmp = File('${file.path}.tmp');
-        await tmp.writeAsString(jsonEncode(value), flush: true);
+
+        final flags = key.removable ? _flagRemovable : 0;
+        final bytes = VaultCodec.encodePayload(value, flags);
+
+        await tmp.writeAsBytes(bytes, flush: true);
         await tmp.rename(file.path);
       });
     } on VaultException<dynamic> catch (e) {
@@ -121,6 +143,39 @@ class DefaultVaultExternalStorage extends VaultStorage {
 
       _vault.onError?.call(exception);
       throw exception;
+    }
+  }
+
+  @override
+  Future<void> clearRemovable() async {
+    // Manual flag check for performance (read only first byte)
+    final files = await getEntries<File>();
+    for (final file in files) {
+      try {
+        if (!await file.exists()) continue;
+
+        final handle = await file.open(mode: FileMode.read);
+        int firstByte = -1;
+        try {
+          if (await file.length() > 0) {
+            // Header is first byte
+            firstByte = await handle.readByte();
+          }
+        } finally {
+          await handle.close();
+        }
+
+        if (firstByte != -1 && (firstByte & _flagRemovable) != 0) {
+          await file.delete();
+        }
+      } catch (error, stackTrace) {
+        final exception = VaultException<dynamic>(
+          'Failed to clear removable file $file',
+          stackTrace: stackTrace,
+          error: error,
+        );
+        _vault.onError?.call(exception);
+      }
     }
   }
 
@@ -170,6 +225,7 @@ class DefaultVaultExternalStorage extends VaultStorage {
   @override
   Future<List<E>> getEntries<E>() async {
     try {
+      if (!_root.existsSync()) return [];
       return (await _root.list().toList()).cast<E>();
     } catch (error, stackTrace) {
       final exception = VaultException<dynamic>(
@@ -181,14 +237,5 @@ class DefaultVaultExternalStorage extends VaultStorage {
       _vault.onError?.call(exception);
       throw exception;
     }
-  }
-
-  /// Synchronously reads the file content.
-  ///
-  /// This operation blocks the thread until the file is read.
-  @override
-  V? readSync<V>(VaultKey<dynamic> key) {
-    final file = getEntry<File>(key);
-    return jsonDecode(file.readAsStringSync()) as V?;
   }
 }

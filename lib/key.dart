@@ -13,9 +13,7 @@ class VaultKey<T> {
     required this.vault,
     this.removable = false,
     this.useExternalStorage = false,
-  }) {
-    vault._keys.add(this);
-  }
+  });
 
   /// The vault instance this key belongs to.
   final Vault vault;

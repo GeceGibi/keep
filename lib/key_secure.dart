@@ -21,9 +21,9 @@ class VaultKeySecure<T> extends VaultKey<T> {
   /// Converts typed object [T] to raw storage data.
   final Object? Function(T value) toStorage;
 
-  /// Returns key name hashed with DJB2 for high-performance path obscuring.
-  String get hashedName {
-    final bytes = utf8.encode(super.name);
+  /// Generates the hashed name for a given [key].
+  static String generateHash(String key) {
+    final bytes = utf8.encode(key);
     var hash = 5381; // DJB2 starting value
 
     for (final byte in bytes) {
@@ -34,6 +34,9 @@ class VaultKeySecure<T> extends VaultKey<T> {
     // Avoid negative by converting to unsigned 64-bit and radix-36
     return hash.toUnsigned(64).toRadixString(36);
   }
+
+  /// Returns key name hashed with DJB2 for path obscuring.
+  String get hashedName => generateHash(super.name);
 
   @override
   String get name => hashedName;
@@ -73,7 +76,7 @@ class VaultKeySecure<T> extends VaultKey<T> {
     try {
       final encryptedData = switch (useExternalStorage) {
         true => await vault.external.read<String>(this),
-        false => vault.internal.read<String>(this),
+        false => await vault.internal.read<String>(this),
       };
 
       if (encryptedData == null) {

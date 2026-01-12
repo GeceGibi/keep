@@ -14,11 +14,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<int>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<int>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -28,19 +31,22 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<int>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) {
-        return switch (value) {
-          int() => value,
-          String() => int.parse(value),
-          _ => null,
-        };
-      },
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<int>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) {
+          return switch (value) {
+            int() => value,
+            String() => int.parse(value),
+            _ => null,
+          };
+        },
+      ),
     );
   }
 
@@ -50,11 +56,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<String>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<String>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -64,13 +73,16 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<String>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) => value?.toString(),
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<String>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) => value?.toString(),
+      ),
     );
   }
 
@@ -80,11 +92,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<bool>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<bool>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -94,19 +109,22 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<bool>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) {
-        return switch (value) {
-          bool() => value,
-          String() => value == 'true',
-          _ => null,
-        };
-      },
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<bool>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) {
+          return switch (value) {
+            bool() => value,
+            String() => value == 'true',
+            _ => null,
+          };
+        },
+      ),
     );
   }
 
@@ -116,11 +134,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<double>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<double>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -130,20 +151,23 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<double>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) {
-        return switch (value) {
-          double() => value,
-          int() => value.toDouble(),
-          String() => double.parse(value),
-          _ => null,
-        };
-      },
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<double>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) {
+          return switch (value) {
+            double() => value,
+            int() => value.toDouble(),
+            String() => double.parse(value),
+            _ => null,
+          };
+        },
+      ),
     );
   }
 
@@ -153,11 +177,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<Map<String, dynamic>>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<Map<String, dynamic>>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -167,18 +194,21 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<Map<String, dynamic>>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) {
-        return switch (value) {
-          Map() => value.cast<String, dynamic>(),
-          _ => null,
-        };
-      },
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<Map<String, dynamic>>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) {
+          return switch (value) {
+            Map() => value.cast<String, dynamic>(),
+            _ => null,
+          };
+        },
+      ),
     );
   }
 
@@ -188,11 +218,14 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKey<List<T>>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
+    return _vault._registerKey(
+      name,
+      () => VaultKey<List<T>>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+      ),
     );
   }
 
@@ -202,18 +235,21 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<List<T>>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: (value) => value,
-      fromStorage: (value) {
-        return switch (value) {
-          List() => value.cast<T>(),
-          _ => null,
-        };
-      },
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<List<T>>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: (value) => value,
+        fromStorage: (value) {
+          return switch (value) {
+            List() => value.cast<T>(),
+            _ => null,
+          };
+        },
+      ),
     );
   }
 
@@ -225,13 +261,16 @@ class VaultKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return VaultKeySecure<T>(
-      name: name,
-      vault: _vault,
-      removable: removable,
-      useExternalStorage: useExternalStorage,
-      toStorage: toStorage,
-      fromStorage: fromStorage,
+    return _vault._registerKey(
+      VaultKeySecure.generateHash(name),
+      () => VaultKeySecure<T>(
+        name: name,
+        vault: _vault,
+        removable: removable,
+        useExternalStorage: useExternalStorage,
+        toStorage: toStorage,
+        fromStorage: fromStorage,
+      ),
     );
   }
 }

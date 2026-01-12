@@ -3,21 +3,24 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
-part 'widgets.dart';
 part 'encrypter.dart';
 part 'encrypter_simple.dart';
+part 'exception.dart';
 part 'key.dart';
-part 'storage_internal.dart';
-part 'storage_external.dart';
-part 'storage.dart';
 part 'key_manager.dart';
 part 'key_secure.dart';
-part 'exception.dart';
+part 'storage.dart';
+part 'storage_external.dart';
+part 'storage_internal.dart';
+part 'codec.dart';
+part 'entry.dart';
+part 'widgets.dart';
 
 /// Simple, Singleton-based Vault storage with Field-Level Encryption support.
 class Vault {
@@ -68,14 +71,37 @@ class Vault {
   Future<void> get _ensureInitialized => _initCompleter.future;
 
   /// Registry of all keys created for this vault.
-  final List<VaultKey<dynamic>> _keys = [];
+  final Map<String, VaultKey<dynamic>> _registry = {};
 
   /// Returns all registered keys.
-  List<VaultKey<dynamic>> get keys => List.unmodifiable(_keys);
+  List<VaultKey<dynamic>> get keys => List.unmodifiable(_registry.values);
+
+  /// Registers or retrieves a key from the registry.
+  ///
+  /// This ensures that [VaultKey] instances are singletons per name.
+  T _registerKey<T extends VaultKey<dynamic>>(
+    String name,
+    T Function() creator,
+  ) {
+    if (_registry.containsKey(name)) {
+      final existing = _registry[name];
+      if (existing is T) {
+        return existing;
+      }
+      throw VaultException<T>(
+        'Key "$name" already exists with type ${existing.runtimeType}, '
+        'but requested $T.',
+      );
+    }
+
+    final newKey = creator();
+    _registry[name] = newKey;
+    return newKey;
+  }
 
   /// Returns all removable `true` keys.
   List<VaultKey<dynamic>> get removableKeys {
-    return List.unmodifiable(_keys.where((k) => k.removable));
+    return List.unmodifiable(_registry.values.where((k) => k.removable));
   }
 
   /// Returns a [VaultKeyManager] to create typed storage keys.
@@ -104,13 +130,25 @@ class Vault {
     _initCompleter.complete();
   }
 
-  /// Removes all keys marked as `removable: true`.
+  /// Removes all keys marked as `removable: true` from the vault.
+  ///
+  /// This operation performs a **storage-level cleanup** by scanning both internal memory
+  /// and external files for entries with the **Removable Flag** set.
+  ///
+  /// Unlike manually iterating over keys, this method:
+  /// 1. **Handles Lazy Keys:** Deletes removable data even if the key objects haven't been accessed/initialized.
+  /// 2. **Is Efficient:** Uses binary headers/flags to identify targets without full data parsing.
+  /// 3. **Syncs State:** Updates internal memory state and notifies active listeners.
   Future<void> clearRemovable() async {
-    await Future.wait(
-      removableKeys.map((key) => key.remove()),
-    );
+    await _ensureInitialized;
 
-    // Notify all removable keys
+    await Future.wait([
+      internal.clearRemovable(),
+      external.clearRemovable(),
+    ]);
+
+    // Notify currently registered removable keys that their data has been cleared.
+    // This updates any UI listening to these keys.
     removableKeys.forEach(_controller.add);
   }
 
@@ -120,6 +158,6 @@ class Vault {
     internal.clear();
 
     // Notify all keys
-    _keys.forEach(_controller.add);
+    _registry.values.forEach(_controller.add);
   }
 }

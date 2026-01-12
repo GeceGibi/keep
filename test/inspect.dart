@@ -10,15 +10,19 @@ class TestVault extends Vault {
         ),
       );
 
-  late final username = key.string('username'); // Internal
-  late final secureToken = key.stringSecure('token'); // Internal Secure
+  VaultKey<String> get username => key.string('username');
+  VaultKey<String> get username2 => key.string('username');
+  VaultKey<String> get username3 => key.string('username');
+  VaultKeySecure<String> get secureToken => key.stringSecure(
+    'token',
+  ); // Internal Secure
 
-  late final extData = key.string(
+  VaultKey<String> get extData => key.string(
     'ext_data',
     useExternalStorage: true,
   ); // External
 
-  late final extSecure = key.stringSecure(
+  VaultKeySecure<String> get extSecure => key.stringSecure(
     'ext_secure',
     useExternalStorage: true,
   ); // External Secure
@@ -29,9 +33,9 @@ void main() {
     final dir = Directory('${Directory.current.path}/test/vault_data_inspect');
 
     // Clean start
-    if (dir.existsSync()) {
-      await dir.delete(recursive: true);
-    }
+    // if (dir.existsSync()) {
+    //   await dir.delete(recursive: true);
+    // }
     await dir.create(recursive: true);
 
     print('Storage Path: ${dir.path}');
@@ -41,7 +45,12 @@ void main() {
 
     // 1. Internal Plain
     print('Internal Plain: ${await storage.username.read()}');
+    print('Internal Plain 2: ${await storage.username2.read()}');
+    print('Internal Plain 3: ${await storage.username3.read()}');
+    ;
     await storage.username.write('john_doe_plain');
+
+    print(storage.keys);
 
     // 2. Internal Secure
     print('Internal Secure: ${await storage.secureToken.read()}');
