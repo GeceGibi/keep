@@ -4,12 +4,12 @@
 
 ## Features
 
-- 🔒 **Secure by Default:** Built-in encryption support and **Byte Shifting** obfuscation for disk security.
-- 🧱 **Type-Safe:** Define keys with specific types (`int`, `bool`, `List<String>`, `CustomObject`).
-- ⚡ **Reactive:** Listen to changes on specific keys or the entire keep using Streams.
-- 🚀 **Performant & Isolated:** UI stays smooth with background I/O and isolate-based processing.
-- 💾 **Hybrid Storage:** Fast load for small values, lazy load for large files.
-- � **Discovery:** Automatically discovers and maps encrypted keys even for uninitialized (`late`) fields.
+- **Secure by Default:** Built-in encryption support and **Byte Shifting** obfuscation for disk security.
+- **Type-Safe:** Define keys with specific types (`int`, `bool`, `List<String>`, `CustomObject`).
+- **Reactive:** Listen to changes on specific keys or the entire keep using Streams.
+- **Performant & Isolated:** UI stays smooth with background I/O and isolate-based processing.
+- **Hybrid Storage:** Fast load for small values, lazy load for large files.
+- **Discovery:** Automatically discovers and maps encrypted keys even for uninitialized (`late`) fields.
 
 ## Installation
 
