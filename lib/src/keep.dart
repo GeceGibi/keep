@@ -358,54 +358,17 @@ class Keep {
 
   /// Returns a snapshot of all keys currently stored in the internal (memory) storage.
   /// For secure keys, discovers the original name from the payload.
-  List<String> get keys {
-    return internalStorage.memory.entries.map((e) {
-      if (e.value.isSecure) {
-        try {
-          final decrypted = encrypter.decryptSync(e.value.value as String);
-          final package = jsonDecode(decrypted) as Map;
-          return package['k'] as String;
-        } catch (_) {}
-      }
-      return e.key;
-    }).toList();
+  List<KeepKey<dynamic>> get keys {
+    return List.unmodifiable(_registry.entries.map((k) => k.value).toList());
   }
 
   /// Returns all removable `true` keys from internal storage.
-  List<String> get removableKeys {
-    return internalStorage.memory.entries.where((e) => e.value.isRemovable).map(
-      (e) {
-        if (e.value.isSecure) {
-          try {
-            final decrypted = encrypter.decryptSync(e.value.value as String);
-            final package = jsonDecode(decrypted) as Map;
-            return package['k'] as String;
-          } catch (_) {}
-        }
-        return e.key;
-      },
-    ).toList();
-  }
-
-  /// Returns all registered keys for external storage that currently exist on disk.
-  Future<List<String>> get keysExternal async {
-    final results = <String>[];
-    final externalKeys = _registry.values.where((k) => k.useExternalStorage);
-
-    for (final key in externalKeys) {
-      if (await externalStorage.exists(key)) {
-        results.add(key.name);
-      }
-    }
-    return results;
-  }
-
-  /// Returns all currently registered keys that are designated for external storage.
-  ///
-  /// Note: This only includes keys that have been instantiated/accessed at least once.
-  List<KeepKey<dynamic>> get removableKeysExternal {
+  List<KeepKey<dynamic>> get removableKeys {
     return List.unmodifiable(
-      _registry.values.where((k) => k.removable && k.useExternalStorage),
+      _registry.entries
+          .where((k) => k.value.removable)
+          .map((k) => k.value)
+          .toList(),
     );
   }
 
@@ -428,9 +391,7 @@ class Keep {
 
     // Notify currently registered removable keys that their data has been cleared.
     // This updates any UI listening to these keys.
-    removableKeys.forEach((e) {
-      // onChangeController.add();
-    });
+    removableKeys.forEach(onChangeController.add);
   }
 
   /// Deletes all data from both internal and external storage.

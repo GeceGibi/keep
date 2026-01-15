@@ -32,7 +32,6 @@ void main() {
     await storage.init(path: dir.path);
 
     print(storage.keys);
-    print(await storage.keysExternal);
 
     // 1. Internal Plain
     print('Internal Plain: ${await storage.username.read()}');
