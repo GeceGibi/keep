@@ -101,12 +101,16 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    int? Function(Object? value)? fromStorage,
+    Object? Function(int value)? toStorage,
   }) {
     final key = KeepKeyPlain<int>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
     );
     _pendingKeys.add(key);
     return key;
@@ -141,12 +145,16 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    String? Function(Object? value)? fromStorage,
+    Object? Function(String value)? toStorage,
   }) {
     final key = KeepKeyPlain<String>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
     );
     _pendingKeys.add(key);
     return key;
@@ -179,12 +187,16 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    bool? Function(Object? value)? fromStorage,
+    Object? Function(bool value)? toStorage,
   }) {
     final key = KeepKeyPlain<bool>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
     );
     _pendingKeys.add(key);
     return key;
@@ -217,12 +229,16 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    double? Function(Object? value)? fromStorage,
+    Object? Function(double value)? toStorage,
   }) {
     final key = KeepKeyPlain<double>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
     );
     _pendingKeys.add(key);
     return key;
@@ -256,13 +272,19 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    Map<String, dynamic>? Function(Object? value)? fromStorage,
+    Object? Function(Map<String, dynamic> value)? toStorage,
   }) {
     final key = KeepKeyPlain<Map<String, dynamic>>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage:
+          fromStorage ?? (v) => v is Map ? v.cast<String, dynamic>() : null,
+      toStorage: toStorage,
     );
+
     _pendingKeys.add(key);
     return key;
   }
@@ -292,13 +314,18 @@ class Keep {
     bool removable = false,
     bool useExternalStorage = false,
     KeepStorage? storage,
+    List<T>? Function(Object? value)? fromStorage,
+    Object? Function(List<T> value)? toStorage,
   }) {
     final key = KeepKeyPlain<List<T>>(
       name: name,
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage ?? (v) => v is List ? v.cast<T>() : null,
+      toStorage: toStorage,
     );
+
     _pendingKeys.add(key);
     return key;
   }

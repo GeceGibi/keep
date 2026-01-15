@@ -14,10 +14,18 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   /// [storage] is an optional custom storage adapter for this specific key.
   KeepKeyPlain({
     required super.name,
+    this.fromStorage,
+    this.toStorage,
     super.removable = false,
     super.useExternalStorage,
     super.storage,
   });
+
+  /// Optional converter from storage to typed object [T].
+  final T? Function(Object? value)? fromStorage;
+
+  /// Optional converter from typed object [T] to storage.
+  final Object? Function(T value)? toStorage;
 
   @override
   KeepKeyPlain<T> call(Object? subKeyName) {
@@ -26,6 +34,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
       removable: removable,
       useExternalStorage: useExternalStorage,
       storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
     )..bind(keep);
     return key;
   }
@@ -33,10 +43,14 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   @override
   T? readSync() {
     try {
-      return switch (useExternalStorage) {
-        true => externalStorage.readSync(this),
-        false => keep.internalStorage.readSync(this),
+      final raw = switch (useExternalStorage) {
+        true => externalStorage.readSync<dynamic>(this),
+        false => keep.internalStorage.readSync<dynamic>(this),
       };
+
+      if (raw == null) return null;
+
+      return fromStorage != null ? fromStorage!(raw) : raw as T?;
     } catch (error, stackTrace) {
       final exception = toException(
         error.toString(),
@@ -56,10 +70,13 @@ class KeepKeyPlain<T> extends KeepKey<T> {
     await keep.ensureInitialized;
 
     try {
-      return switch (useExternalStorage) {
-        true => await externalStorage.read(this),
-        false => keep.internalStorage.read(this),
-      };
+      final raw = await (useExternalStorage
+          ? externalStorage.read<dynamic>(this)
+          : keep.internalStorage.read<dynamic>(this));
+
+      if (raw == null) return null;
+
+      return fromStorage != null ? fromStorage!(raw) : raw as T?;
     } catch (error, stackTrace) {
       final exception = toException(
         error.toString(),
@@ -85,10 +102,12 @@ class KeepKeyPlain<T> extends KeepKey<T> {
     }
 
     try {
+      final storageValue = toStorage != null ? toStorage!(value) : value;
+
       if (useExternalStorage) {
-        await externalStorage.write(this, value);
+        await externalStorage.write(this, storageValue);
       } else {
-        await keep.internalStorage.write(this, value);
+        await keep.internalStorage.write(this, storageValue);
       }
     } catch (error, stackTrace) {
       final exception = toException(
