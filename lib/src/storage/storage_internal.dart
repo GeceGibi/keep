@@ -118,16 +118,22 @@ class KeepInternalStorage extends KeepStorage {
   @override
   V? readSync<V>(KeepKey<dynamic> key) {
     final entry = memory[key.storeName];
-    if (entry == null) return null;
+    if (entry == null) {
+      return null;
+    }
+
     return entry.value as V?;
   }
 
   @override
-  FutureOr<bool> exists(KeepKey<dynamic> key) =>
-      memory.containsKey(key.storeName);
+  FutureOr<bool> exists(KeepKey<dynamic> key) {
+    return memory.containsKey(key.storeName);
+  }
 
   @override
-  bool existsSync(KeepKey<dynamic> key) => memory.containsKey(key.storeName);
+  bool existsSync(KeepKey<dynamic> key) {
+    return memory.containsKey(key.storeName);
+  }
 
   @override
   F getEntry<F>(KeepKey<dynamic> key) {
