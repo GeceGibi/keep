@@ -8,8 +8,6 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   final Map<String, Future<void>> _queue = {};
 
-  static const int _flagRemovable = 1;
-
   Future<T> _withQueue<T>(String key, Future<T> Function() action) async {
     final previous = _queue[key];
     final completer = Completer<void>();
@@ -50,13 +48,13 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   @override
   F getEntry<F>(KeepKey<dynamic> key) {
-    return File('${_root.path}/${key.name}') as F;
+    return File('${_root.path}/${key.storeName}') as F;
   }
 
   @override
   Future<V?> read<V>(KeepKey<dynamic> key) async {
     try {
-      return _withQueue(key.name, () async {
+      return _withQueue(key.storeName, () async {
         final file = getEntry<File>(key);
 
         if (!await file.exists()) {
@@ -99,11 +97,14 @@ class DefaultKeepExternalStorage extends KeepStorage {
   @override
   Future<void> write(KeepKey<dynamic> key, Object? value) async {
     try {
-      await _withQueue(key.name, () async {
+      await _withQueue(key.storeName, () async {
         final file = getEntry<File>(key);
         final tmp = File('${file.path}.tmp');
 
-        final flags = key.removable ? _flagRemovable : 0;
+        var flags = 0;
+        if (key.removable) flags |= KeepCodec.flagRemovable;
+        if (key is KeepKeySecure) flags |= KeepCodec.flagSecure;
+
         final bytes = KeepCodec.encodePayload(value, flags);
 
         await tmp.writeAsBytes(bytes, flush: true);
@@ -165,7 +166,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
           await handle.close();
         }
 
-        if (firstByte != -1 && (firstByte & _flagRemovable) != 0) {
+        if (firstByte != -1 && (firstByte & KeepCodec.flagRemovable) != 0) {
           await file.delete();
         }
       } catch (error, stackTrace) {

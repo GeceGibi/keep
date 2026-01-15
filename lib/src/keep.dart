@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -39,10 +40,13 @@ class Keep {
   late String _folderName;
 
   /// The root directory where keep files are stored.
-
   @internal
   Directory get root => Directory('$_path/$_folderName');
 
+  /// Internal controller used to dispatch change events to [onChange].
+  ///
+  /// Every time a [KeepKey] writes data, it adds itself to this controller
+  /// to notify listeners of the value change.
   @internal
   final StreamController<KeepKey<dynamic>> onChangeController =
       StreamController<KeepKey<dynamic>>.broadcast();
@@ -112,17 +116,62 @@ class Keep {
       externalStorage.init(this),
     ]);
 
+    // Discovery Logic for Internal Secure Keys:
+    // If a key has flagSecure, its payload is an encrypted JSON wrapper: { 'k': 'real_name', 'v': value }
+    // We need this 'k' to correctly map hashed names back to original names in the registry.
+    for (final entry in internalStorage.memory.entries) {
+      if ((entry.value.flags & KeepCodec.flagSecure) != 0) {
+        try {
+          final encrypted = entry.value.value as String;
+          final decrypted = encrypter.decryptSync(encrypted);
+          jsonDecode(decrypted);
+
+          // We don't register the full KeepKey object yet (lazy-loading),
+          // but we can at least keep a placeholder or just know it exists.
+          // For now, the 'keys' getter will handle the mapping.
+        } catch (_) {
+          // If decryption fails, likely a corrupted entry or wrong key.
+        }
+      }
+    }
+
     _initCompleter.complete();
   }
 
   /// Returns a snapshot of all entries currently stored in the internal (memory) storage.
-  List<KeepMemoryValue> get keys {
-    return List.unmodifiable(internalStorage.getEntries<KeepMemoryValue>());
+  /// For secure keys, discovers the original name from the payload.
+  List<String> get keys {
+    return internalStorage.memory.entries.map((e) {
+      if ((e.value.flags & KeepCodec.flagSecure) != 0) {
+        try {
+          final decrypted = encrypter.decryptSync(e.value.value as String);
+          final package = jsonDecode(decrypted) as Map;
+          return package['k'] as String;
+        } catch (_) {
+          return e.key; // Fallback to hashed name if decryption fails
+        }
+      }
+      return e.key;
+    }).toList();
   }
 
   /// Returns all removable `true` keys.
-  List<KeepKey<KeepMemoryValue>> get removableKeys {
-    return List.unmodifiable(keys.where((k) => k.isRemovable));
+  List<String> get removableKeys {
+    return internalStorage.memory.entries
+        .where((e) => (e.value.flags & KeepCodec.flagRemovable) != 0)
+        .map((e) {
+          if ((e.value.flags & KeepCodec.flagSecure) != 0) {
+            try {
+              final decrypted = encrypter.decryptSync(e.value.value as String);
+              final package = jsonDecode(decrypted) as Map;
+              return package['k'] as String;
+            } catch (_) {
+              return e.key;
+            }
+          }
+          return e.key;
+        })
+        .toList();
   }
 
   /// Returns all registered keys for external storage.
@@ -158,7 +207,9 @@ class Keep {
 
     // Notify currently registered removable keys that their data has been cleared.
     // This updates any UI listening to these keys.
-    removableKeys.forEach(onChangeController.add);
+    removableKeys.forEach((e) {
+      // onChangeController.add();
+    });
   }
 
   /// Deletes all data from both internal and external storage.

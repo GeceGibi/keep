@@ -34,8 +34,14 @@ class KeepMemoryValue {
   /// Returns `true` if the first bit (Bit 0) of [flags] is set.
   bool get isRemovable => (flags & KeepCodec.flagRemovable) != 0;
 
+  /// Checks if the entry is marked as **Secure**.
+  ///
+  /// Returns `true` if the second bit (Bit 1) of [flags] is set.
+  bool get isSecure => (flags & KeepCodec.flagSecure) != 0;
+
   @override
-  String toString() => 'KeepMemoryValue(value: $value, flags: $flags)';
+  String toString() =>
+      'KeepMemoryValue(value: $value, flags: $flags, isRemovable: $isRemovable, isSecure: $isSecure)';
 
   @override
   bool operator ==(Object other) {

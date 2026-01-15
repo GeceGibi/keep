@@ -37,6 +37,12 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
   /// The unique identifier or path of this key within the [Keep] storage.
   final String name;
 
+  /// The name used for physical storage on disk or in the internal map.
+  ///
+  /// For [KeepKeyPlain], this is same as [name].
+  /// For [KeepKeySecure], this is the hashed version of [name].
+  String get storeName => name;
+
   /// Whether this key is marked as 'removable'.
   ///
   /// Removable keys are typically used for temporary data (like caches) that

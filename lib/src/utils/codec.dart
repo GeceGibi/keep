@@ -16,6 +16,13 @@ class KeepCodec {
   @internal
   static const int flagRemovable = 1;
 
+  /// Flag bitmask for **Secure** keys (Bit 1).
+  ///
+  /// Indicates that the payload is encrypted and contains its original key name
+  /// for discovery in internal storage.
+  @internal
+  static const int flagSecure = 2;
+
   /// Encodes a map of [KeepMemoryValue] objects into a single binary block (for Internal Storage).
   ///
   /// This method iterates through the registry and serializes each entry sequentially.
@@ -78,7 +85,17 @@ class KeepCodec {
       buffer.add(valBytes);
     });
 
-    return buffer.toBytes();
+    final raw = buffer.toBytes();
+
+    // Byte Shifting: Obfuscate the entire binary block before writing.
+    // We apply a simple bitwise left rotation (ROL 1) to each byte.
+    // This prevents standard text/JSON viewers from reading the file contents.
+    for (var i = 0; i < raw.length; i++) {
+      final b = raw[i];
+      raw[i] = ((b << 1) | (b >> 7)) & 0xFF;
+    }
+
+    return raw;
   }
 
   /// Decodes a binary block into a map of [KeepMemoryValue] objects (for Internal Storage).
@@ -89,42 +106,53 @@ class KeepCodec {
   /// It is robust against partial reads but assumes the binary integrity is valid up to the
   /// last complete entry.
   static Map<String, KeepMemoryValue> decodeAll(Uint8List bytes) {
+    if (bytes.isEmpty) return {};
+
+    // Clone the bytes to avoid modifying the original buffer.
+    final data = Uint8List.fromList(bytes);
+
+    // Byte Shifting: Reverse the obfuscation (ROR 1).
+    for (var i = 0; i < data.length; i++) {
+      final b = data[i];
+      data[i] = ((b >> 1) | (b << 7)) & 0xFF;
+    }
+
     final map = <String, KeepMemoryValue>{};
     var offset = 0;
 
-    while (offset < bytes.length) {
+    while (offset < data.length) {
       // Safety check: Ensure at least 1 byte exists for Key Length
-      if (offset + 1 > bytes.length) break;
+      if (offset + 1 > data.length) break;
 
       // 1. Read Key
-      final keyLen = bytes[offset++];
-      if (offset + keyLen > bytes.length) break;
+      final keyLen = data[offset++];
+      if (offset + keyLen > data.length) break;
 
-      final key = utf8.decode(bytes.sublist(offset, offset + keyLen));
+      final key = utf8.decode(data.sublist(offset, offset + keyLen));
       offset += keyLen;
 
       // Safety check: Ensure at least 1 byte exists for Flags
-      if (offset + 1 > bytes.length) break;
+      if (offset + 1 > data.length) break;
 
       // 2. Read Flags
-      final flags = bytes[offset++];
+      final flags = data[offset++];
 
       // Safety check: Ensure 4 bytes exist for Value Length
-      if (offset + 4 > bytes.length) break;
+      if (offset + 4 > data.length) break;
 
       // 3. Read Value Length (Web-safe Big Endian 32-bit Integer)
       final valLen =
-          ((bytes[offset] << 24) |
-                  (bytes[offset + 1] << 16) |
-                  (bytes[offset + 2] << 8) |
-                  (bytes[offset + 3]))
+          ((data[offset] << 24) |
+                  (data[offset + 1] << 16) |
+                  (data[offset + 2] << 8) |
+                  (data[offset + 3]))
               .toUnsigned(32);
       offset += 4;
 
-      if (offset + valLen > bytes.length) break;
+      if (offset + valLen > data.length) break;
 
       // 4. Read Value
-      final jsonString = utf8.decode(bytes.sublist(offset, offset + valLen));
+      final jsonString = utf8.decode(data.sublist(offset, offset + valLen));
       final value = jsonDecode(jsonString);
       offset += valLen;
 

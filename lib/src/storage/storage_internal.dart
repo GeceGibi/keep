@@ -11,9 +11,6 @@ class KeepInternalStorage extends KeepStorage {
   Map<String, KeepMemoryValue> memory = {};
 
   Timer? _saveDebounce;
-
-  static const int _flagRemovable = 1;
-
   @override
   Future<void> init(Keep keep) async {
     try {
@@ -84,16 +81,19 @@ class KeepInternalStorage extends KeepStorage {
   Future<void> write(KeepKey<dynamic> key, dynamic value) async {
     var flags = 0;
     if (key.removable) {
-      flags |= _flagRemovable;
+      flags |= KeepCodec.flagRemovable;
+    }
+    if (key is KeepKeySecure) {
+      flags |= KeepCodec.flagSecure;
     }
 
-    memory[key.name] = KeepMemoryValue(value, flags);
+    memory[key.storeName] = KeepMemoryValue(value, flags);
     unawaited(saveMemory());
   }
 
   @override
   Future<void> remove(KeepKey<dynamic> key) async {
-    memory.remove(key.name);
+    memory.remove(key.storeName);
     unawaited(saveMemory());
   }
 
@@ -117,24 +117,25 @@ class KeepInternalStorage extends KeepStorage {
 
   @override
   V? readSync<V>(KeepKey<dynamic> key) {
-    final entry = memory[key.name];
+    final entry = memory[key.storeName];
     if (entry == null) return null;
     return entry.value as V?;
   }
 
   @override
-  FutureOr<bool> exists(KeepKey<dynamic> key) => memory.containsKey(key.name);
+  FutureOr<bool> exists(KeepKey<dynamic> key) =>
+      memory.containsKey(key.storeName);
 
   @override
-  bool existsSync(KeepKey<dynamic> key) => memory.containsKey(key.name);
+  bool existsSync(KeepKey<dynamic> key) => memory.containsKey(key.storeName);
 
   @override
   F getEntry<F>(KeepKey<dynamic> key) {
-    final entry = memory[key.name];
+    final entry = memory[key.storeName];
 
     if (entry == null) {
       throw KeepException<dynamic>(
-        'Key "${key.name}" not found in internal storage',
+        'Key "${key.storeName}" not found in internal storage',
       );
     }
     return entry as F;
@@ -144,6 +145,6 @@ class KeepInternalStorage extends KeepStorage {
   List<E> getEntries<E>() {
     // Return values or keys?
     // Protocol says "raw entries". Usually for inspection.
-    return memory.values.toList().cast<E>();
+    return memory.entries.toList().cast<E>();
   }
 }

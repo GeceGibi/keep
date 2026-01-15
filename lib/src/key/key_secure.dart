@@ -57,10 +57,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
   }
 
   /// Returns the [name] hashed with DJB2 for storage obfuscation.
-  String get hashedName => generateHash(super.name);
-
   @override
-  String get name => hashedName;
+  String get storeName => generateHash(name);
 
   @override
   T? readSync() {
@@ -75,7 +73,9 @@ class KeepKeySecure<T> extends KeepKey<T> {
       }
 
       final decrypted = keep.encrypter.decryptSync(encrypted);
-      return fromStorage(jsonDecode(decrypted));
+      final package = jsonDecode(decrypted) as Map;
+
+      return fromStorage(package['v']);
     } catch (error, stackTrace) {
       final exception = toException(
         error.toString(),
@@ -105,7 +105,9 @@ class KeepKeySecure<T> extends KeepKey<T> {
       }
 
       final decrypted = await keep.encrypter.decrypt(encrypted);
-      return fromStorage(await compute(jsonDecode, decrypted));
+      final package = await compute(jsonDecode, decrypted) as Map;
+
+      return fromStorage(package['v']);
     } catch (error, stackTrace) {
       final exception = toException(
         error.toString(),
@@ -130,10 +132,15 @@ class KeepKeySecure<T> extends KeepKey<T> {
       return;
     }
 
-    final storageValue = toStorage(value);
+    // Wrap the name and value: { 'k': original_name, 'v': value }
+    // This allows key discovery from the encrypted payload.
+    final package = {
+      'k': super.name,
+      'v': toStorage(value),
+    };
 
     final encrypted = await keep.encrypter.encrypt(
-      await compute(jsonEncode, storageValue),
+      await compute(jsonEncode, package),
     );
 
     keep.onChangeController.add(this);
