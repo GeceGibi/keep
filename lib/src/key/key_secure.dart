@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'key.dart';
 
 /// A specialized [KeepKey] that automatically encrypts and decrypts data
 /// before it reaches the storage layer.
@@ -66,8 +66,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
   T? readSync() {
     try {
       final encrypted = switch (useExternalStorage) {
-        true => keep.external.readSync<String>(this),
-        false => keep.internal.readSync<String>(this),
+        true => keep.externalStorage.readSync<String>(this),
+        false => keep.internalStorage.readSync<String>(this),
       };
 
       if (encrypted == null) {
@@ -92,12 +92,12 @@ class KeepKeySecure<T> extends KeepKey<T> {
   /// Reads the encrypted string from storage, decrypts it, and maps it to [T].
   @override
   Future<T?> read() async {
-    await keep._ensureInitialized;
+    await keep.ensureInitialized;
 
     try {
       final encrypted = switch (useExternalStorage) {
-        true => await keep.external.read<String>(this),
-        false => await keep.internal.read<String>(this),
+        true => await keep.externalStorage.read<String>(this),
+        false => await keep.internalStorage.read<String>(this),
       };
 
       if (encrypted == null) {
@@ -123,7 +123,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
   /// Maps [value] to JSON, encrypts the result, and writes it to storage.
   @override
   Future<void> write(T? value) async {
-    await keep._ensureInitialized;
+    await keep.ensureInitialized;
 
     if (value == null) {
       await remove();
@@ -136,12 +136,12 @@ class KeepKeySecure<T> extends KeepKey<T> {
       await compute(jsonEncode, storageValue),
     );
 
-    keep._controller.add(this);
+    keep.onChangeController.add(this);
 
     if (useExternalStorage) {
-      await keep.external.write(this, encrypted);
+      await keep.externalStorage.write(this, encrypted);
     } else {
-      await keep.internal.write(this, encrypted);
+      await keep.internalStorage.write(this, encrypted);
     }
   }
 }

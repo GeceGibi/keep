@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'storage.dart';
 
 /// Default implementation using the standard [Directory] and [File] system.
 /// Uses [KeepCodec] for binary payload serialization.

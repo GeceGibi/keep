@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'encrypter.dart';
 
 /// Default XOR-based implementation of [KeepEncrypter].
 ///

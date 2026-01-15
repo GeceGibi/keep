@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'utils.dart';
 
 /// Handles binary encoding and decoding of Keep data structures.
 ///
@@ -13,7 +13,8 @@ class KeepCodec {
   ///
   /// If this bit is set (1), the key is effectively "lazy-loaded" and candidates for
   /// cleanup operations via [clearRemovable].
-  static const int _flagRemovable = 1;
+  @internal
+  static const int flagRemovable = 1;
 
   /// Encodes a map of [KeepMemoryValue] objects into a single binary block (for Internal Storage).
   ///
@@ -111,18 +112,13 @@ class KeepCodec {
       // Safety check: Ensure 4 bytes exist for Value Length
       if (offset + 4 > bytes.length) break;
 
-      // 3. Read Value Length (Big Endian)
-      // We reconstruct the 32-bit integer by reading 4 bytes and shifting them back.
-      // 1. Shift 1st byte 24 bits left  (AA000000)
-      // 2. Shift 2nd byte 16 bits left  (00BB0000)
-      // 3. Shift 3rd byte 8 bits left   (0000CC00)
-      // 4. Leave 4th byte as is         (000000DD)
-      // OR (|) them all together -> 0xAABBCCDD
+      // 3. Read Value Length (Web-safe Big Endian 32-bit Integer)
       final valLen =
-          (bytes[offset] << 24) |
-          (bytes[offset + 1] << 16) |
-          (bytes[offset + 2] << 8) |
-          (bytes[offset + 3]);
+          ((bytes[offset] << 24) |
+                  (bytes[offset + 1] << 16) |
+                  (bytes[offset + 2] << 8) |
+                  (bytes[offset + 3]))
+              .toUnsigned(32);
       offset += 4;
 
       if (offset + valLen > bytes.length) break;
@@ -173,10 +169,8 @@ class KeepCodec {
       return KeepMemoryValue(null, flags);
     }
 
-    final valBytes = bytes.sublist(1);
-    if (valBytes.isEmpty) return KeepMemoryValue(null, flags);
-
     try {
+      final valBytes = bytes.sublist(1);
       final jsonString = utf8.decode(valBytes);
       final value = jsonDecode(jsonString);
       return KeepMemoryValue(value, flags);

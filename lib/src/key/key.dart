@@ -1,4 +1,13 @@
-part of 'keep.dart';
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:keep/src/keep.dart';
+import 'package:keep/src/utils/utils.dart';
+
+part 'key_manager.dart';
+part 'key_plain.dart';
+part 'key_secure.dart';
 
 /// Abstract base class for all typed keys in [Keep].
 ///
@@ -75,14 +84,14 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
 
   /// Returns `true` if this key exists in the storage.
   Future<bool> get exists async {
-    await keep._ensureInitialized;
+    await keep.ensureInitialized;
 
     try {
       if (useExternalStorage) {
-        return keep.external.exists(this);
+        return keep.externalStorage.exists(this);
       }
 
-      return keep.internal.exists(this);
+      return keep.internalStorage.exists(this);
     } catch (e, s) {
       final exception = toException(
         e.toString(),
@@ -102,10 +111,10 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
   bool get existsSync {
     try {
       if (useExternalStorage) {
-        return keep.external.existsSync(this);
+        return keep.externalStorage.existsSync(this);
       }
 
-      return keep.internal.existsSync(this);
+      return keep.internalStorage.existsSync(this);
     } catch (e, s) {
       final exception = toException(
         e.toString(),
@@ -160,13 +169,13 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
 
   /// Removes this key and its associated value from both memory and disk.
   Future<void> remove() async {
-    await keep._ensureInitialized;
+    await keep.ensureInitialized;
 
     try {
       if (useExternalStorage) {
-        await keep.external.remove(this);
+        await keep.externalStorage.remove(this);
       } else {
-        await keep.internal.remove(this);
+        await keep.internalStorage.remove(this);
       }
     } catch (e, s) {
       final exception = toException(

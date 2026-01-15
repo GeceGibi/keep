@@ -1,4 +1,14 @@
-part of 'keep.dart';
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:keep/src/keep.dart';
+import 'package:keep/src/key/key.dart';
+import 'package:keep/src/utils/utils.dart';
+
+part 'storage_internal.dart';
+part 'storage_external.dart';
+part 'storage_internal_entry.dart';
 
 /// Abstract base class for solid storage implementations (Files, Cloud, etc.).
 abstract class KeepStorage {

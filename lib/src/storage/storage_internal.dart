@@ -1,8 +1,9 @@
-part of 'keep.dart';
+part of 'storage.dart';
 
 /// In-memory storage that syncs to a binary file.
 /// Uses [KeepCodec] for binary serialization/deserialization.
-class _KeepInternalStorage extends KeepStorage {
+@internal
+class KeepInternalStorage extends KeepStorage {
   late File _rootFile;
   late final Keep _keep;
 

@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'key.dart';
 
 /// A standard implementation of [KeepKey] that stores data as plain JSON.
 ///
@@ -28,8 +28,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   T? readSync() {
     try {
       return switch (useExternalStorage) {
-        true => keep.external.readSync(this),
-        false => keep.internal.readSync(this),
+        true => keep.externalStorage.readSync(this),
+        false => keep.internalStorage.readSync(this),
       };
     } catch (error, stackTrace) {
       final exception = toException(
@@ -47,12 +47,12 @@ class KeepKeyPlain<T> extends KeepKey<T> {
 
   @override
   Future<T?> read() async {
-    await keep._ensureInitialized;
+    await keep.ensureInitialized;
 
     try {
       return switch (useExternalStorage) {
-        true => await keep.external.read(this),
-        false => keep.internal.read(this),
+        true => await keep.externalStorage.read(this),
+        false => keep.internalStorage.read(this),
       };
     } catch (error, stackTrace) {
       final exception = toException(
@@ -70,8 +70,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
 
   @override
   Future<void> write(T? value) async {
-    await keep._ensureInitialized;
-    keep._controller.add(this);
+    await keep.ensureInitialized;
+    keep.onChangeController.add(this);
 
     if (value == null) {
       await remove();
@@ -80,9 +80,9 @@ class KeepKeyPlain<T> extends KeepKey<T> {
 
     try {
       if (useExternalStorage) {
-        await keep.external.write(this, value);
+        await keep.externalStorage.write(this, value);
       } else {
-        await keep.internal.write(this, value);
+        await keep.internalStorage.write(this, value);
       }
     } catch (error, stackTrace) {
       final exception = toException(

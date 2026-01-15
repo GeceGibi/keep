@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'utils.dart';
 
 /// Exception thrown when a keep operation fails.
 class KeepException<T> implements Exception {
@@ -8,7 +8,7 @@ class KeepException<T> implements Exception {
   /// The error message.
   final String message;
 
-  /// The associated [KeepKeyBase], if any.
+  /// The associated [KeepKey], if any.
   final KeepKey<T>? key;
 
   /// The underlying error object.

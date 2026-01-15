@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'storage.dart';
 
 /// Represents a value stored in the keep along with its associated metadata flags.
 ///
@@ -32,10 +32,10 @@ class KeepMemoryValue {
   /// Checks if the entry is marked as **Removable**.
   ///
   /// Returns `true` if the first bit (Bit 0) of [flags] is set.
-  bool get isRemovable => (flags & KeepCodec._flagRemovable) != 0;
+  bool get isRemovable => (flags & KeepCodec.flagRemovable) != 0;
 
   @override
-  String toString() => 'KeepEntry(value: $value, flags: $flags)';
+  String toString() => 'KeepMemoryValue(value: $value, flags: $flags)';
 
   @override
   bool operator ==(Object other) {

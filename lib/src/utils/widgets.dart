@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'utils.dart';
 
 /// A reactive widget that rebuilds when the value of a [KeepKey] changes.
 class KeepBuilder<T> extends StatelessWidget {

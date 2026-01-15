@@ -1,4 +1,4 @@
-part of 'keep.dart';
+part of 'key.dart';
 
 /// Factory for creating typed [KeepKeyPlain] and [KeepKeySecure] instances.
 ///
@@ -15,7 +15,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<int>(
         name: name,
@@ -32,7 +32,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<int>(
         name: name,
@@ -57,7 +57,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<String>(
         name: name,
@@ -74,7 +74,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<String>(
         name: name,
@@ -93,7 +93,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<bool>(
         name: name,
@@ -110,7 +110,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<bool>(
         name: name,
@@ -135,7 +135,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<double>(
         name: name,
@@ -152,7 +152,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<double>(
         name: name,
@@ -178,7 +178,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<Map<String, dynamic>>(
         name: name,
@@ -195,7 +195,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<Map<String, dynamic>>(
         name: name,
@@ -219,7 +219,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       name,
       () => KeepKeyPlain<List<T>>(
         name: name,
@@ -236,7 +236,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<List<T>>(
         name: name,
@@ -262,7 +262,7 @@ class KeepKeyManager {
     bool removable = false,
     bool useExternalStorage = false,
   }) {
-    return _keep._registerKey(
+    return _keep.registerKey(
       KeepKeySecure.generateHash(name),
       () => KeepKeySecure<T>(
         name: name,
