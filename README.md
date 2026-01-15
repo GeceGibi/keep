@@ -1,32 +1,50 @@
 # Keep
 
-**Keep** is a modern, type-safe, and reactive local storage solution for Flutter apps. It is designed to replace `SharedPreferences` with a more robust architecture that supports encryption, custom data models, and isolated file storage for large datasets.
+**Keep** is a modern, type-safe, and highly reactive local storage engine for Flutter. Built for developers who need more than just key-value pairs, Keep offers **Field-Level Encryption**, **Hybrid Storage** (Memory + Disk), and a **"No-Late" Static API** that makes state management a breeze.
 
-## Features
+---
 
-- **Secure by Default:** Built-in encryption support and **Byte Shifting** obfuscation for disk security.
-- **Type-Safe:** Define keys with specific types (`int`, `bool`, `List<String>`, `CustomObject`).
-- **Reactive:** Listen to changes on specific keys or the entire keep using Streams.
-- **Performant & Isolated:** UI stays smooth with background I/O and isolate-based processing.
-- **Hybrid Storage:** Fast load for small values, lazy load for large files.
-- **Discovery:** Automatically discovers and maps encrypted keys even for uninitialized (`late`) fields.
+## Key Features
+
+- **Field-Level Encryption:** Encrypt sensitive fields individually while keeping the rest plain.
+- **"No-Late" Architecture:** Define keys as final class members. No late, no complicated initialization.
+- **Fully Reactive:** Bind your UI directly to storage keys with KeepBuilder or Streams.
+- **Hybrid Storage:** Small data lives in a fast binary index; large data is offloaded to independent files.
+- **Obfuscated Disk Footprint:** File names and internal keys are hashed (DJB2) and payloads are byte-shifted.
+- **Type-Safe:** Built-in support for int, String, bool, double, Map, List, and Custom Objects.
+
+---
 
 ## Installation
 
-Add `keep` to your `pubspec.yaml`:
+Add keep to your pubspec.yaml:
 
 ```yaml
 dependencies:
-  keep: ^0.0.1
+  keep: ^0.0.2
 ```
+
+---
 
 ## Usage
 
-### 1. Define Your Storage
-Extend `Keep` and define your keys as `final` fields using the static factories.
+### 1. Define Your Schema
+Extend Keep and declare your keys. You can configure global error handling, encryption, and storage through the constructor.
 
 ```dart
 class AppStorage extends Keep {
+  AppStorage() : super(
+    // Global error listener
+    onError: (exception) => print('Keep Error: ${exception.message}'),
+
+    // Custom encryption strategy (defaults to XOR obfuscation)
+    encrypter: MyAesEncrypter(),
+
+    // Custom storage adapter (defaults to File-based storage)
+    externalStorage: DefaultKeepExternalStorage(),
+  );
+
+  // Define keys as final fields
   final counter = Keep.integer('counter');
   final username = Keep.string('username');
   final authToken = Keep.stringSecure('auth_token');
@@ -36,168 +54,188 @@ class AppStorage extends Keep {
 final storage = AppStorage();
 ```
 
-### 2. Initialize
+### 2. Constructor Configuration
 
-Initialize the storage before running your app. Path defaults to `getApplicationSupportDirectory()`.
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `onError` | `Function(KeepException)` | Global callback for all storage and encryption errors. | `null` |
+| `encrypter` | `KeepEncrypter` | The implementation used for secure keys. | `SimpleKeepEncrypter` |
+| `externalStorage` | `KeepStorage` | The adapter used for external (file-based) keys. | `DefaultKeepExternalStorage` |
+
+### 3. Initialize
+Call init() before using the storage (usually in your main function).
 
 ```dart
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await storage.init(); // Uses app support directory by default
+  
+  // Default path: getApplicationSupportDirectory()
+  await storage.init(); 
+  
   runApp(const MyApp());
 }
 ```
 
-Or specify a custom path:
+### 4. Read & Write
+Keep supports both async and sync reads for maximum flexibility.
 
 ```dart
-await storage.init(path: '/custom/path', folderName: 'my_keep');
+// Simple writes
+await storage.counter.write(42);
+
+// Async reads (Safest)
+final value = await storage.counter.read();
+final safeValue = await storage.counter.readSafe(0);
+
+// Sync reads (Fast, for UI building)
+final syncValue = storage.counter.readSync();
 ```
 
-### 3. Read & Write
-
-```dart
-// Write
-await counter.write(42);
-
-// Read (Async)
-final count = await counter.read(); // returns int?
-final safeCount = await counter.readSafe(0); // returns int (0 if null)
-
-// Read (Sync) - Great for non-async contexts
-final syncCount = counter.readSync();
-
-// Remove
-await counter.remove();
-```
-
-### 4. Reactive UI
-
-Keep provides a simple way to rebuild your UI when data changes.
+### 5. Reactive UI Binding
+Rebuild widgets automatically when a specific key changes.
 
 ```dart
 KeepBuilder<int>(
   keepKey: storage.counter,
   builder: (context, value) {
-    return Text('Count: ${value ?? 0}');
+    return Text('Value: $value');
   },
 );
 ```
 
-Or listen to the stream directly:
-
-```dart
-storage.counter.stream.listen((key) async {
-  final value = await key.read();
-  print('Counter changed to: $value');
-});
-```
+---
 
 ## Advanced Usage
 
-### File System Isolation for Large Data
+### Custom Encryption (AES Example)
 
-By default, Keep stores keys in a single JSON file for fast startup. For large data (like long lists or cached API responses), use `useExternalStorage: true`. This stores the data in a separate file, keeping the main index light.
-
-```dart
-final largeData = Keep.integer(
-  'api_cache',
-  useExternalStorage: true,
-);
-```
-
-### Secured Keys
-
-Use `Keep.integerSecure` (or custom secure keys) to automatically encrypt data before writing to disk.
+For production apps, implement `KeepEncrypter` with a robust algorithm like **AES-GCM**. Use `Isolate.run` to offload heavy cryptographic operations from the UI thread.
 
 ```dart
-final apiKey = Keep.integerSecure('api_key');
-```
+import 'dart:async';
+import 'dart:isolate';
+import 'package:keep/keep.dart';
+import 'package:encrypt/encrypt.dart' as crypt;
 
-### Custom Objects
+class MyAesEncrypter extends KeepEncrypter {
+  late crypt.Encrypter _encrypter;
+  final _iv = crypt.IV.fromLength(16);
 
-Store any class by providing a serializer and deserializer.
-
-```dart
-class UserProfile {
-  final String name;
-  UserProfile(this.name);
-  
-  Map<String, dynamic> toJson() => {'name': name};
-  static UserProfile fromJson(dynamic json) => UserProfile(json['json_data']);
-}
-
-final profile = Keep.custom<UserProfile>(
-  name: 'user_profile',
-  fromStorage: UserProfile.fromJson,
-  toStorage: (u) => u.toJson(),
-);
-```
-
-### Sub-keys
-
-You can create dynamic sub-keys by calling a key instance. This is useful for lists, category-based data, or dynamic paths.
-
-```dart
-final notes = Keep.string('notes');
-
-// Creates keys named "notes.work", "notes.personal", etc.
-await notes('work').write('Finish documentation');
-await notes('personal').write('Buy milk');
-
-final workNote = await notes('work').read();
-```
-
-## Documentation
-
-All public APIs are documented with Dartdoc comments. Key classes:
-
-- **`Keep`** – Main storage controller.
-- **`KeepKey<T>`** – Typed key for read/write operations.
-- **`KeepKeySecure<T>`** – Encrypted variant of `KeepKey`.
-- **`KeepStorage`** – Abstract base for custom storage backends.
-- **`KeepEncrypter`** – Interface for encryption implementations.
-- **`KeepBuilder`** – Reactive widget for UI updates.
-
-## Custom Encryption
-
-You can implement `KeepEncrypter` to provide your own encryption logic (e.g., AES).
-For heavy operations, use `Isolate.run` in async methods to keep the UI smooth.
-
-```dart
-class AesEncrypter extends KeepEncrypter {
   @override
   Future<void> init() async {
-    // Initialize keys...
-  }
-
-  @override
-  FutureOr<String> encrypt(String data) {
-    // Offload heavy encryption to an isolate
-    return Isolate.run(() => encryptSync(data));
+    // In a real app, retrieve this from a secure vault like flutter_secure_storage
+    final key = crypt.Key.fromUtf8('my-32-character-ultra-secure-key');
+    _encrypter = crypt.Encrypter(crypt.AES(key, mode: crypt.AESMode.gcm));
   }
 
   @override
   String encryptSync(String data) {
-    // Implement synchronous encryption logic
-    return _aesEncrypt(data);
-  }
-
-  @override
-  FutureOr<String> decrypt(String data) {
-    return Isolate.run(() => decryptSync(data));
+    return _encrypter.encrypt(data, iv: _iv).base64;
   }
 
   @override
   String decryptSync(String data) {
-    return _aesDecrypt(data);
+    return _encrypter.decrypt64(data, iv: _iv);
   }
+
+  @override
+  Future<String> encrypt(String data) => Isolate.run(() => encryptSync(data));
+
+  @override
+  Future<String> decrypt(String data) => Isolate.run(() => decryptSync(data));
 }
 ```
 
-## Roadmap & Planned Features
+### Custom Storage Adapter
 
-- [ ] **Data Integrity:** Add Checksum/CRC32 validation for binary files.
-- [ ] **Atomicity:** Implement Shadow Backups (.bak) to recover from system crashes.
-- [ ] **Migration:** Tools for schema versioning and data migrations.
-- [ ] **Compression:** Optional GZip/Brotli support for large external files.
+Implement `KeepStorage` to change how external keys (those with `useExternalStorage: true`) are persisted. This is useful for storing large blobs in a local database like SQLite or a NoSQL solution.
+
+```dart
+class MyDatabaseStorage extends KeepStorage {
+  @override
+  Future<void> init(Keep keep) async {
+    // Open your database connection here
+    print('Initializing Database Storage for ${keep.root.path}');
+  }
+
+  @override
+  FutureOr<void> write(KeepKey<dynamic> key, Object? value) async {
+    // key.storeName contains the hashed/obfuscated name
+    // Save 'value' to your DB table where id = key.storeName
+  }
+
+  @override
+  FutureOr<V?> read<V>(KeepKey<dynamic> key) async {
+    // Retrieve value from DB and cast to V
+    return null; 
+  }
+
+  @override
+  FutureOr<void> remove(KeepKey<dynamic> key) async {
+    // Delete row from DB
+  }
+
+  @override
+  FutureOr<bool> exists(KeepKey<dynamic> key) async {
+    // Check if row exists in DB
+    return false;
+  }
+
+  @override
+  FutureOr<void> clear() async {
+    // Truncate storage table
+  }
+
+  // Mandatory overrides for sync and internal discovery
+  @override
+  V? readSync<V>(KeepKey<dynamic> key) => null;
+  
+  @override
+  bool existsSync(KeepKey<dynamic> key) => false;
+
+  @override
+  F getEntry<F>(KeepKey<dynamic> key) => throw UnimplementedError('DB does not use Files');
+
+  @override
+  FutureOr<List<E>> getEntries<E>() => [];
+
+  @override
+  Future<void> clearRemovable() async {
+    // Query DB for entries with removable flag and delete them
+  }
+}
+
+// Injection into your Storage class
+class AppStorage extends Keep {
+  AppStorage() : super(
+    externalStorage: MyDatabaseStorage(),
+  );
+
+  // This key will now use MyDatabaseStorage instead of the file system
+  final largeLogs = Keep.list('logs', useExternalStorage: true);
+}
+```
+
+---
+
+## Hybrid Storage Logic
+
+Keep optimizes performance by splitting data:
+
+1.  **Internal Storage (main.keep):** A single binary-obfuscated file containing small values and metadata.
+2.  **External Storage (/external/*):** Each key marked with `useExternalStorage: true` gets its own dedicated file. 
+
+---
+
+## Documentation
+
+- **Keep**: The orchestrator. Handles lifecycle and registry.
+- **KeepKey<T>**: Handle for data access. Supports `read()`, `write()`, and `Stream` listening.
+- **KeepKeySecure<T>**: Automatically handles encryption cycles.
+- **KeepBuilder**: Reactive widget for automatic UI updates.
+
+---
+
+## License
+
+MIT License - Check [LICENSE](LICENSE) for details. Developed by **GeceGibi**.
