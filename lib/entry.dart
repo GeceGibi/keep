@@ -6,13 +6,13 @@ part of 'keep.dart';
 /// information within the Keep system. It encapsulates both the raw data payload
 /// and bitwise flags that define the data's behavior (e.g., persistence strategies).
 ///
-/// Instances of [KeepEntry] are immutable and are used during:
+/// Instances of [KeepMemoryValue] are immutable and are used during:
 /// - In-memory storage (Internal Keep)
 /// - Binary serialization (External Keep)
 @immutable
-class KeepEntry {
+class KeepMemoryValue {
   /// Creates a new keep entry with the given [value] and [flags].
-  const KeepEntry(this.value, this.flags);
+  const KeepMemoryValue(this.value, this.flags);
 
   /// The stored value payload.
   ///
@@ -40,7 +40,9 @@ class KeepEntry {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is KeepEntry && other.value == value && other.flags == flags;
+    return other is KeepMemoryValue &&
+        other.value == value &&
+        other.flags == flags;
   }
 
   @override

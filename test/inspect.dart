@@ -11,7 +11,7 @@ class TestKeep extends Keep {
       );
 
   KeepKey<String> get username => keep.string('username');
-  KeepKeySecure<String> get secureToken => keep.stringSecure(
+  KeepKey<String> get secureToken => keep.stringSecure(
     'token',
   ); // Internal Secure
 
@@ -20,7 +20,7 @@ class TestKeep extends Keep {
     useExternalStorage: true,
   ); // External
 
-  KeepKeySecure<String> get extSecure => keep.stringSecure(
+  KeepKey<String> get extSecure => keep.stringSecure(
     'ext_secure',
     useExternalStorage: true,
   ); // External Secure
@@ -41,7 +41,7 @@ void main() {
     final storage = TestKeep();
     await storage.init(path: dir.path);
 
-    print(await storage.keys);
+    print(storage.keys);
     print(await storage.keysExternal);
 
     // 1. Internal Plain

@@ -125,12 +125,12 @@ class Keep {
   }
 
   /// Returns all registered keys for not external storage.
-  List<KeepEntry> get keys {
-    return List.unmodifiable(internal.getEntries<KeepEntry>());
+  List<KeepMemoryValue> get keys {
+    return List.unmodifiable(internal.getEntries<KeepMemoryValue>());
   }
 
   /// Returns all removable `true` keys.
-  List<KeepKey<KeepEntry>> get removableKeys {
+  List<KeepKey<KeepMemoryValue>> get removableKeys {
     return List.unmodifiable(keys.where((k) => k.isRemovable));
   }
 

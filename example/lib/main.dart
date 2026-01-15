@@ -11,20 +11,20 @@ class AppStorage extends Keep {
         );
 
   // Standard keys
-  late final counter = key.integer('counter');
-  late final username = key.string('username');
-  late final isDarkMode = key.boolean('is_dark_mode');
-  late final rating = key.decimal('rating');
-  late final tags = key.list<String>('tags');
-  late final settings = key.map('settings');
+  late final counter = keep.integer('counter');
+  late final username = keep.string('username');
+  late final isDarkMode = keep.boolean('is_dark_mode');
+  late final rating = keep.decimal('rating');
+  late final tags = keep.list<String>('tags');
+  late final settings = keep.map('settings');
 
   // Secure keys (encrypted)
-  late final authToken = key.stringSecure('auth_token');
-  late final pinCode = key.integerSecure('pin_code');
+  late final authToken = keep.stringSecure('auth_token');
+  late final pinCode = keep.integerSecure('pin_code');
 
   // External storage (separate files)
-  late final largeData = key.map('large_data', useExternalStorage: true);
-  late final secretFile = key.stringSecure(
+  late final largeData = keep.map('large_data', useExternalStorage: true);
+  late final secretFile = keep.stringSecure(
     'secret_file',
     useExternalStorage: true,
   );
@@ -61,14 +61,14 @@ class TestScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Keep Test')),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
+        children: const [
           _TestButton('Run All Tests', _runAllTests),
-          const Divider(),
+          Divider(),
           _TestButton('Test Standard Keys', _testStandardKeys),
           _TestButton('Test Secure Keys', _testSecureKeys),
           _TestButton('Test External Storage', _testExternalStorage),
           _TestButton('Test Reactivity', _testReactivity),
-          const Divider(),
+          Divider(),
           _TestButton('Clear All', _clearAll, color: Colors.red),
         ],
       ),

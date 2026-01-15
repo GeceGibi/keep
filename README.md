@@ -35,14 +35,14 @@ class AppStorage extends Keep {
   );
 
   // Standard keys
-  late final counter = key.integer('counter');
-  late final username = key.string('username');
+  late final counter = keep.integer('counter');
+  late final username = keep.string('username');
   
   // Encrypted keys
-  late final authToken = key.stringSecure('auth_token');
+  late final authToken = keep.stringSecure('auth_token');
   
   // External storage (separate files)
-  late final largeData = key.map('data', useExternalStorage: true);
+  late final largeData = keep.map('data', useExternalStorage: true);
 }
 
 final storage = AppStorage();
@@ -112,7 +112,7 @@ storage.counter.stream.listen((key) async {
 By default, Keep stores keys in a single JSON file for fast startup. For large data (like long lists or cached API responses), use `useExternalStorage: true`. This stores the data in a separate file, keeping the main index light.
 
 ```dart
-final largeData = keep.key.integer(
+final largeData = keep.integer(
   'api_cache',
   useExternalStorage: true,
 );
@@ -123,7 +123,7 @@ final largeData = keep.key.integer(
 Use `integerSecure` (or custom secure keys) to automatically encrypt data before writing to disk.
 
 ```dart
-final apiKey = keep.key.integerSecure('api_key');
+final apiKey = keep.integerSecure('api_key');
 ```
 
 ### Custom Objects
@@ -139,7 +139,7 @@ class UserProfile {
   static UserProfile fromJson(dynamic json) => UserProfile(json['name']);
 }
 
-final profile = keep.key.custom<UserProfile>(
+final profile = keep.custom<UserProfile>(
   name: 'user_profile',
   fromStorage: UserProfile.fromJson,
   toStorage: (u) => u.toJson(),
@@ -194,9 +194,8 @@ class AesEncrypter extends KeepEncrypter {
 }
 ```
 
-## Planned Features
-
-- [ ] Custom serialization support for `KeepKey` (`fromStorage`/`toStorage`)
-- [ ] AES-GCM encryption option
-- [ ] Migration tools for version upgrades
-- [ ] Batch operations
+- [ ] Data Integrity: Add **Checksum/CRC32** validation for binary files.
+- [ ] Atomicity: Implement **Shadow Backups** (.bak) for automatic recovery from file corruption.
+- [ ] Binary Protocol: Add **Magic Headers** to identify valid Keep files.
+- [ ] Migration tools for schema/version upgrades.
+- [ ] Batch write operations.

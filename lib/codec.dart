@@ -2,7 +2,7 @@ part of 'keep.dart';
 
 /// Handles binary encoding and decoding of Keep data structures.
 ///
-/// The [KeepCodec] is responsible for serializing [KeepEntry] objects into optimized binary formats
+/// The [KeepCodec] is responsible for serializing [KeepMemoryValue] objects into optimized binary formats
 /// for both internal (single-file) and external (multi-file) storage.
 ///
 /// It uses a **Binary Container** approach, where metadata (flags) and payload (data) are packed together.
@@ -15,7 +15,7 @@ class KeepCodec {
   /// cleanup operations via [clearRemovable].
   static const int _flagRemovable = 1;
 
-  /// Encodes a map of [KeepEntry] objects into a single binary block (for Internal Storage).
+  /// Encodes a map of [KeepMemoryValue] objects into a single binary block (for Internal Storage).
   ///
   /// This method iterates through the registry and serializes each entry sequentially.
   ///
@@ -35,7 +35,7 @@ class KeepCodec {
   /// - **Value Payload (M Bytes):** The UTF-8 encoded JSON string of the stored value.
   ///
   /// Total Logic: `KeyLen + Key + Flags + ValLen + Value`.
-  static Uint8List encodeAll(Map<String, KeepEntry> entries) {
+  static Uint8List encodeAll(Map<String, KeepMemoryValue> entries) {
     final buffer = BytesBuilder();
 
     entries.forEach((key, entry) {
@@ -80,15 +80,15 @@ class KeepCodec {
     return buffer.toBytes();
   }
 
-  /// Decodes a binary block into a map of [KeepEntry] objects (for Internal Storage).
+  /// Decodes a binary block into a map of [KeepMemoryValue] objects (for Internal Storage).
   ///
-  /// This method parses the binary stream sequentially, reconstructing the [KeepEntry]
+  /// This method parses the binary stream sequentially, reconstructing the [KeepMemoryValue]
   /// objects with their associated metadata flags.
   ///
   /// It is robust against partial reads but assumes the binary integrity is valid up to the
   /// last complete entry.
-  static Map<String, KeepEntry> decodeAll(Uint8List bytes) {
-    final map = <String, KeepEntry>{};
+  static Map<String, KeepMemoryValue> decodeAll(Uint8List bytes) {
+    final map = <String, KeepMemoryValue>{};
     var offset = 0;
 
     while (offset < bytes.length) {
@@ -132,7 +132,7 @@ class KeepCodec {
       final value = jsonDecode(jsonString);
       offset += valLen;
 
-      map[key] = KeepEntry(value, flags);
+      map[key] = KeepMemoryValue(value, flags);
     }
 
     return map;
@@ -160,26 +160,26 @@ class KeepCodec {
     return buffer.toBytes();
   }
 
-  /// Decodes a binary payload into a [KeepEntry] (for External Storage).
+  /// Decodes a binary payload into a [KeepMemoryValue] (for External Storage).
   ///
   /// Reads the first byte as flags and the rest as the JSON value.
-  static KeepEntry? decodePayload(Uint8List bytes) {
+  static KeepMemoryValue? decodePayload(Uint8List bytes) {
     if (bytes.isEmpty) return null;
 
     final flags = bytes[0];
 
     // Case: Only flags byte exists (Empty payload)
     if (bytes.length == 1) {
-      return KeepEntry(null, flags);
+      return KeepMemoryValue(null, flags);
     }
 
     final valBytes = bytes.sublist(1);
-    if (valBytes.isEmpty) return KeepEntry(null, flags);
+    if (valBytes.isEmpty) return KeepMemoryValue(null, flags);
 
     try {
       final jsonString = utf8.decode(valBytes);
       final value = jsonDecode(jsonString);
-      return KeepEntry(value, flags);
+      return KeepMemoryValue(value, flags);
     } catch (_) {
       // Return null on corruption to handle gracefully
       return null;

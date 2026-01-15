@@ -7,7 +7,7 @@ class _KeepInternalStorage extends KeepStorage {
   late final Keep _keep;
 
   /// In-memory cache of entries.
-  Map<String, KeepEntry> memory = {};
+  Map<String, KeepMemoryValue> memory = {};
 
   Timer? _saveDebounce;
 
@@ -55,7 +55,7 @@ class _KeepInternalStorage extends KeepStorage {
 
     _saveDebounce = Timer(const Duration(milliseconds: 150), () async {
       try {
-        final currentMemory = Map<String, KeepEntry>.from(memory);
+        final currentMemory = Map<String, KeepMemoryValue>.from(memory);
         final bytes = await compute(KeepCodec.encodeAll, currentMemory);
 
         final tmp = File('${_rootFile.path}.tmp');
@@ -86,7 +86,7 @@ class _KeepInternalStorage extends KeepStorage {
       flags |= _flagRemovable;
     }
 
-    memory[key.name] = KeepEntry(value, flags);
+    memory[key.name] = KeepMemoryValue(value, flags);
     unawaited(saveMemory());
   }
 
