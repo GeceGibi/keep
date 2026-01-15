@@ -22,27 +22,15 @@ dependencies:
 
 ## Usage
 
-### 1. Extend Keep
-
-Create a storage class by extending `Keep` and define your keys as fields.
+### 1. Define Your Storage
+Extend `Keep` and define your keys as `final` fields using the static factories.
 
 ```dart
-import 'package:keep/keep.dart';
-
 class AppStorage extends Keep {
-  AppStorage() : super(
-    encrypter: SimpleKeepEncrypter(secureKey: 'your-32-char-key!!'),
-  );
-
-  // Standard keys
-  late final counter = keep.integer('counter');
-  late final username = keep.string('username');
-  
-  // Encrypted keys
-  late final authToken = keep.stringSecure('auth_token');
-  
-  // External storage (separate files)
-  late final largeData = keep.map('data', useExternalStorage: true);
+  final counter = Keep.integer('counter');
+  final username = Keep.string('username');
+  final authToken = Keep.stringSecure('auth_token');
+  final settings = Keep.map('settings', useExternalStorage: true);
 }
 
 final storage = AppStorage();
@@ -112,7 +100,7 @@ storage.counter.stream.listen((key) async {
 By default, Keep stores keys in a single JSON file for fast startup. For large data (like long lists or cached API responses), use `useExternalStorage: true`. This stores the data in a separate file, keeping the main index light.
 
 ```dart
-final largeData = keep.integer(
+final largeData = Keep.integer(
   'api_cache',
   useExternalStorage: true,
 );
@@ -120,10 +108,10 @@ final largeData = keep.integer(
 
 ### Secured Keys
 
-Use `integerSecure` (or custom secure keys) to automatically encrypt data before writing to disk.
+Use `Keep.integerSecure` (or custom secure keys) to automatically encrypt data before writing to disk.
 
 ```dart
-final apiKey = keep.integerSecure('api_key');
+final apiKey = Keep.integerSecure('api_key');
 ```
 
 ### Custom Objects
@@ -136,10 +124,10 @@ class UserProfile {
   UserProfile(this.name);
   
   Map<String, dynamic> toJson() => {'name': name};
-  static UserProfile fromJson(dynamic json) => UserProfile(json['name']);
+  static UserProfile fromJson(dynamic json) => UserProfile(json['json_data']);
 }
 
-final profile = keep.custom<UserProfile>(
+final profile = Keep.custom<UserProfile>(
   name: 'user_profile',
   fromStorage: UserProfile.fromJson,
   toStorage: (u) => u.toJson(),
@@ -151,7 +139,7 @@ final profile = keep.custom<UserProfile>(
 You can create dynamic sub-keys by calling a key instance. This is useful for lists, category-based data, or dynamic paths.
 
 ```dart
-final notes = keep.string('notes');
+final notes = Keep.string('notes');
 
 // Creates keys named "notes.work", "notes.personal", etc.
 await notes('work').write('Finish documentation');
@@ -167,7 +155,6 @@ All public APIs are documented with Dartdoc comments. Key classes:
 - **`Keep`** – Main storage controller.
 - **`KeepKey<T>`** – Typed key for read/write operations.
 - **`KeepKeySecure<T>`** – Encrypted variant of `KeepKey`.
-- **`KeepKeyManager`** – Factory for creating keys.
 - **`KeepStorage`** – Abstract base for custom storage backends.
 - **`KeepEncrypter`** – Interface for encryption implementations.
 - **`KeepBuilder`** – Reactive widget for UI updates.

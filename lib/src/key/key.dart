@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:keep/src/keep.dart';
 import 'package:keep/src/utils/utils.dart';
 
-part 'key_manager.dart';
 part 'key_plain.dart';
 part 'key_secure.dart';
 
@@ -20,19 +19,23 @@ part 'key_secure.dart';
 abstract class KeepKey<T> extends Stream<KeepKey<T>> {
   /// Creates a [KeepKey].
   ///
-  /// - [name]: A unique identifier for the key. Often used as a filename or map key.
-  /// - [keep]: The [Keep] instance managing this key.
-  /// - [removable]: If `true`, the entry can be deleted during mass cleanup operations.
-  /// - [useExternalStorage]: If `true`, the value is stored in a separate file instead of the main database.
+  /// [name] is the unique identifier for this key.
+  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [useExternalStorage] indicates if the value should be stored in its own file.
   KeepKey({
     required this.name,
-    required this.keep,
     this.removable = false,
     this.useExternalStorage = false,
   });
 
   /// The [Keep] instance that manages this key's lifecycle and storage.
-  final Keep keep;
+  Keep get keep => _keep;
+  late Keep _keep;
+
+  @internal
+  /// Internal method to bind this key to a [Keep] instance.
+  // ignore: use_setters_to_change_properties
+  void bind(Keep keep) => _keep = keep;
 
   /// The unique identifier or path of this key within the [Keep] storage.
   final String name;

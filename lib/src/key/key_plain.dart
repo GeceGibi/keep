@@ -7,21 +7,25 @@ part of 'key.dart';
 /// (file-based) storage seamlessly.
 class KeepKeyPlain<T> extends KeepKey<T> {
   /// Creates a [KeepKeyPlain].
+  ///
+  /// [name] is the unique identifier for this key.
+  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [useExternalStorage] indicates if the value should be stored in its own file.
   KeepKeyPlain({
     required super.name,
-    required super.keep,
     super.removable = false,
     super.useExternalStorage = false,
   });
 
   @override
   KeepKeyPlain<T> call(Object? subKeyName) {
-    return KeepKeyPlain<T>(
+    final key = KeepKeyPlain<T>(
       name: '$name.$subKeyName',
       removable: removable,
-      keep: keep,
       useExternalStorage: useExternalStorage,
     );
+    key.bind(keep);
+    return key;
   }
 
   @override

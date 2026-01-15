@@ -11,23 +11,20 @@ class AppStorage extends Keep {
         );
 
   // Standard keys
-  late final counter = keep.integer('counter');
-  late final username = keep.string('username');
-  late final isDarkMode = keep.boolean('is_dark_mode');
-  late final rating = keep.decimal('rating');
-  late final tags = keep.list<String>('tags');
-  late final settings = keep.map('settings');
+  final counter = Keep.integer('counter');
+  final username = Keep.string('username');
+  final isDarkMode = Keep.boolean('is_dark_mode');
+  final rating = Keep.decimal('rating');
+  final tags = Keep.list<String>('tags');
+  final settings = Keep.map('settings');
 
   // Secure keys (encrypted)
-  late final authToken = keep.stringSecure('auth_token');
-  late final pinCode = keep.integerSecure('pin_code');
+  final authToken = Keep.stringSecure('auth_token');
+  final pinCode = Keep.integerSecure('pin_code');
 
   // External storage (separate files)
-  late final largeData = keep.map('large_data', useExternalStorage: true);
-  late final secretFile = keep.stringSecure(
-    'secret_file',
-    useExternalStorage: true,
-  );
+  final largeData = Keep.map('large_data', useExternalStorage: true);
+  final secretFile = Keep.stringSecure('secret_file', useExternalStorage: true);
 }
 
 // Global instance

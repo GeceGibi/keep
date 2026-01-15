@@ -9,11 +9,13 @@ part of 'key.dart';
 class KeepKeySecure<T> extends KeepKey<T> {
   /// Creates a [KeepKeySecure].
   ///
-  /// - [fromStorage]: Maps the decrypted JSON object back to type [T].
-  /// - [toStorage]: Maps type [T] to a JSON-encodable object.
+  /// [name] is the unique identifier for this key.
+  /// [fromStorage] maps the decrypted JSON object back to type [T].
+  /// [toStorage] maps type [T] to a JSON-encodable object.
+  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [useExternalStorage] indicates if the value should be stored in its own file.
   KeepKeySecure({
     required super.name,
-    required super.keep,
     required this.fromStorage,
     required this.toStorage,
     super.removable,
@@ -23,14 +25,15 @@ class KeepKeySecure<T> extends KeepKey<T> {
   /// Creates a sub-key by appending [subKeyName] to the current [name].
   @override
   KeepKeySecure<T> call(Object? subKeyName) {
-    return KeepKeySecure<T>(
+    final key = KeepKeySecure<T>(
       name: '${super.name}.$subKeyName',
-      keep: keep,
       removable: removable,
       useExternalStorage: useExternalStorage,
       fromStorage: fromStorage,
       toStorage: toStorage,
     );
+    key.bind(keep);
+    return key;
   }
 
   /// Converts raw storage data to typed object [T].

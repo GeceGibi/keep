@@ -3,9 +3,10 @@ part of 'storage.dart';
 /// Default implementation using the standard [Directory] and [File] system.
 /// Uses [KeepCodec] for binary payload serialization.
 class DefaultKeepExternalStorage extends KeepStorage {
+  /// Creates a new [DefaultKeepExternalStorage] instance.
+  DefaultKeepExternalStorage();
   late Directory _root;
   late Keep _keep;
-
   final Map<String, Future<void>> _queue = {};
 
   Future<T> _withQueue<T>(String key, Future<T> Function() action) async {
@@ -28,8 +29,8 @@ class DefaultKeepExternalStorage extends KeepStorage {
   @override
   Future<void> init(Keep keep) async {
     try {
-      _root = Directory('${keep.root.path}/external');
       _keep = keep;
+      _root = Directory('${keep.root.path}/external');
 
       if (!_root.existsSync()) {
         await _root.create(recursive: true);
@@ -57,12 +58,14 @@ class DefaultKeepExternalStorage extends KeepStorage {
       return _withQueue(key.storeName, () async {
         final file = getEntry<File>(key);
 
-        if (!await file.exists()) {
+        if (!file.existsSync()) {
           return null;
         }
 
         final bytes = await file.readAsBytes();
-        if (bytes.isEmpty) return null;
+        if (bytes.isEmpty) {
+          return null;
+        }
 
         final entry = KeepCodec.decodePayload(bytes);
         return entry?.value as V?;
@@ -150,10 +153,11 @@ class DefaultKeepExternalStorage extends KeepStorage {
   @override
   Future<void> clearRemovable() async {
     // Manual flag check for performance (read only first byte)
-    final files = await getEntries<File>();
-    for (final file in files) {
+    final names = await getEntries<String>();
+    for (final name in names) {
+      final file = File('${_keep.root.path}/external/$name');
       try {
-        if (!await file.exists()) continue;
+        if (!file.existsSync()) continue;
 
         final handle = await file.open(mode: FileMode.read);
         int firstByte = -1;
@@ -182,9 +186,13 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   @override
   Future<void> clear() async {
-    for (final file in await getEntries<FileSystemEntity>()) {
+    final names = await getEntries<String>();
+    for (final name in names) {
+      final file = File('${_keep.root.path}/external/$name');
       try {
-        await file.delete();
+        if (await file.exists()) {
+          await file.delete();
+        }
       } catch (error, stackTrace) {
         final exception = KeepException<dynamic>(
           'Failed to delete $file',
@@ -225,18 +233,11 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   @override
   Future<List<E>> getEntries<E>() async {
-    try {
-      if (!_root.existsSync()) return [];
-      return (await _root.list().toList()).cast<E>();
-    } catch (error, stackTrace) {
-      final exception = KeepException<dynamic>(
-        'Failed to get entries',
-        stackTrace: stackTrace,
-        error: error,
-      );
+    final dir = Directory('${_keep.root.path}/external');
+    if (!dir.existsSync()) return [];
 
-      _keep.onError?.call(exception);
-      throw exception;
-    }
+    final list = await dir.list().where((e) => e is File).toList();
+    // Return base names (filenames)
+    return list.map((e) => e.uri.pathSegments.last).cast<E>().toList();
   }
 }

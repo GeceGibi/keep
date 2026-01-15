@@ -10,20 +10,10 @@ class TestKeep extends Keep {
         ),
       );
 
-  KeepKey<String> get username => keep.string('username');
-  KeepKey<String> get secureToken => keep.stringSecure(
-    'token',
-  ); // Internal Secure
-
-  KeepKey<String> get extData => keep.string(
-    'ext_data',
-    useExternalStorage: true,
-  ); // External
-
-  KeepKey<String> get extSecure => keep.stringSecure(
-    'ext_secure',
-    useExternalStorage: true,
-  ); // External Secure
+  final username = Keep.string('username');
+  final secureToken = Keep.stringSecure('token');
+  final extData = Keep.string('ext_data', useExternalStorage: true);
+  final extSecure = Keep.stringSecure('ext_secure', useExternalStorage: true);
 }
 
 void main() {

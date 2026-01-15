@@ -6,7 +6,9 @@ part of 'encrypter.dart';
 /// For sensitive data, implement [KeepEncrypter] with AES-GCM or use
 /// platform-native secure storage.
 class SimpleKeepEncrypter extends KeepEncrypter {
-  /// Creates a [SimpleKeepEncrypter] with a [secureKey].
+  /// Creates a [SimpleKeepEncrypter].
+  ///
+  /// [secureKey] is the key used for XOR obfuscation.
   SimpleKeepEncrypter({required this.secureKey});
 
   /// The key used for XOR obfuscation.

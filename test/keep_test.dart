@@ -11,16 +11,16 @@ class TestKeep extends Keep {
         ),
       );
 
-  late final counter = keep.integer('counter');
-  late final username = keep.string('username');
-  late final secureToken = keep.stringSecure('token');
+  final counter = Keep.integer('counter');
+  final username = Keep.string('username');
+  final secureToken = Keep.stringSecure('token');
 
-  late final extData = keep.string(
+  final extData = Keep.string(
     'ext_data',
     useExternalStorage: true,
   );
 
-  late final extSecure = keep.stringSecure(
+  final extSecure = Keep.stringSecure(
     'ext_secure',
     useExternalStorage: true,
   );
@@ -113,7 +113,7 @@ void main() {
 
       // Dosya içeriği şifreli olmalı
       final file = File(
-        '${tempDir.path}/keep/external/${storage.extSecure.name}',
+        '${tempDir.path}/keep/external/${storage.extSecure.storeName}',
       ); // Hashed name
       final content = file.readAsStringSync();
       expect(content, isNot(contains('super_secret_file')));
