@@ -349,7 +349,7 @@ class Keep {
   }
 
   /// Creates a custom encrypted key with specialized serialization.
-  static KeepKeySecure<T> custom<T>({
+  static KeepKeySecure<T> customSecure<T>({
     required String name,
     required T? Function(Object? value) fromStorage,
     required Object? Function(T value) toStorage,
@@ -358,6 +358,27 @@ class Keep {
     KeepStorage? storage,
   }) {
     final key = KeepKeySecure<T>(
+      name: name,
+      removable: removable,
+      useExternal: useExternal,
+      storage: storage,
+      fromStorage: fromStorage,
+      toStorage: toStorage,
+    );
+    _pendingKeys.add(key);
+    return key;
+  }
+
+  /// Creates a custom plain key with specialized serialization.
+  static KeepKeyPlain<T> custom<T>({
+    required String name,
+    required T? Function(Object? value) fromStorage,
+    required Object? Function(T value) toStorage,
+    bool removable = false,
+    bool useExternal = false,
+    KeepStorage? storage,
+  }) {
+    final key = KeepKeyPlain<T>(
       name: name,
       removable: removable,
       useExternal: useExternal,
