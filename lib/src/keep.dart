@@ -31,6 +31,10 @@ class Keep {
     _bindPending();
   }
 
+  /// Current binary format version of the keep storage.
+  @internal
+  static const int version = 1;
+
   /// Internal list of keys collected during class field initialization.
   static final List<KeepKey<dynamic>> _pendingKeys = [];
 

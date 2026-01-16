@@ -85,9 +85,9 @@ void main() {
     });
 
     test('Data is actually encrypted in memory check', () {
-      // Internal storage'a direkt erişip şifreli olduğunu doğruluyoruz
-      // Bu private API erişimi gerektirir (yansıtma veya varsayım).
-      // Keep public API üzerinden bunu test edemeyiz, encryption interface testine güveniyoruz.
+      // We verify that it is encrypted by accessing internal storage directly.
+      // This requires either private API access or assumptions.
+      // We cannot test this through the Keep public API, we rely on the encryption interface test.
     });
   });
 
@@ -96,8 +96,10 @@ void main() {
       await storage.extData.write('hello_file');
       expect(await storage.extData.read(), 'hello_file');
 
-      // Dosyanın diskte olduğunu doğrula
-      final file = File('${tempDir.path}/keep/external/ext_data');
+      // Verify the file exists on disk (it is now stored with a hashed name)
+      final file = File(
+        '${tempDir.path}/keep/external/${storage.extData.storeName}',
+      );
       expect(file.existsSync(), true);
     });
 
@@ -115,8 +117,10 @@ void main() {
       final file = File(
         '${tempDir.path}/keep/external/${storage.extSecure.storeName}',
       ); // Hashed name
-      final content = file.readAsStringSync();
-      expect(content, isNot(contains('super_secret_file')));
+      final bytes = file.readAsBytesSync();
+      // Content should not be plain text (both encrypted and byte-shifted)
+      final plainString = String.fromCharCodes(bytes);
+      expect(plainString, isNot(contains('super_secret_file')));
     });
   });
 

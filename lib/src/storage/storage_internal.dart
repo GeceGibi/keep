@@ -11,6 +11,8 @@ class KeepInternalStorage extends KeepStorage {
   Map<String, KeepMemoryValue> memory = {};
 
   Timer? _saveDebounce;
+
+  /// Initializes the internal storage by loading the 'main.keep' file.
   @override
   Future<void> init(Keep keep) async {
     try {
@@ -72,11 +74,13 @@ class KeepInternalStorage extends KeepStorage {
     });
   }
 
+  /// Asynchronously reads a value from the memory cache.
   @override
   Future<V?> read<V>(KeepKey<dynamic> key) async {
     return readSync<V>(key);
   }
 
+  /// Writes a value to the memory cache and triggers a persistence sync.
   @override
   Future<void> write(KeepKey<dynamic> key, dynamic value) async {
     var flags = 0;
@@ -91,18 +95,21 @@ class KeepInternalStorage extends KeepStorage {
     unawaited(saveMemory());
   }
 
+  /// Removes an entry from memory and triggers a persistence sync.
   @override
   Future<void> remove(KeepKey<dynamic> key) async {
     memory.remove(key.storeName);
     unawaited(saveMemory());
   }
 
+  /// Clears all entries from the internal storage.
   @override
   Future<void> clear() async {
     memory.clear();
     unawaited(saveMemory());
   }
 
+  /// Removes all entries marked as removable from memory.
   @override
   Future<void> clearRemovable() async {
     final keysToRemove = memory.keys
@@ -115,13 +122,13 @@ class KeepInternalStorage extends KeepStorage {
     }
   }
 
+  /// Synchronously reads a value from the memory cache.
   @override
   V? readSync<V>(KeepKey<dynamic> key) {
     final entry = memory[key.storeName];
     if (entry == null) {
       return null;
     }
-
     return entry.value as V?;
   }
 
@@ -138,7 +145,6 @@ class KeepInternalStorage extends KeepStorage {
   @override
   F getEntry<F>(KeepKey<dynamic> key) {
     final entry = memory[key.storeName];
-
     if (entry == null) {
       throw KeepException<dynamic>(
         'Key "${key.storeName}" not found in internal storage',
@@ -149,8 +155,7 @@ class KeepInternalStorage extends KeepStorage {
 
   @override
   List<E> getEntries<E>() {
-    // Return values or keys?
-    // Protocol says "raw entries". Usually for inspection.
+    /// Returns a list of all raw entries in memory.
     return memory.entries.toList().cast<E>();
   }
 }

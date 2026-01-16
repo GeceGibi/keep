@@ -1,3 +1,15 @@
+## [0.2.0]
+### Added
+- **Unified Key Hashing:** All storage keys (Plain & Secure) now use DJB2 hashing for their physical storage names (`storeName`). This prevents issues with special characters in file names and adds a layer of obfuscation for all keys.
+- **Payload Obfuscation for External Storage:** Byte shifting (ROL 1) is now consistently applied to both internal and external storage payloads.
+
+### Changed
+- **Breaking Change (Secure Storage Format):** `KeepKeySecure` no longer wraps encrypted data in a Map `{ 'k': name, 'v': value }`. It now stores the raw encrypted value directly for improved efficiency and simplicity.
+- **Refactoring:** Extracted hashing and byte shifting logic into `KeepCodec` for better modularity and reuse.
+
+### Fixed
+- **Empty File Handling:** Added robust null checks for empty files in external storage to prevent potential crashes.
+
 ## [0.1.2]
 ### Added
 - **`Keep.custom`:** Added a new method for plain (unencrypted) custom storage keys.

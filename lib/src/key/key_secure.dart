@@ -59,6 +59,11 @@ class KeepKeySecure<T> extends KeepKey<T> {
       final decrypted = keep.encrypter.decryptSync(encrypted);
       final decoded = jsonDecode(decrypted);
 
+      // Migration Guard: Handle legacy { 'k': name, 'v': value } format
+      if (decoded is Map && decoded.containsKey('v')) {
+        return fromStorage(decoded['v']);
+      }
+
       return fromStorage(decoded);
     } catch (error, stackTrace) {
       final exception = toException(
@@ -90,6 +95,11 @@ class KeepKeySecure<T> extends KeepKey<T> {
 
       final decrypted = await keep.encrypter.decrypt(encrypted);
       final decoded = await compute(jsonDecode, decrypted);
+
+      // Migration Guard: Handle legacy { 'k': name, 'v': value } format
+      if (decoded is Map && decoded.containsKey('v')) {
+        return fromStorage(decoded['v']);
+      }
 
       return fromStorage(decoded);
     } catch (error, stackTrace) {

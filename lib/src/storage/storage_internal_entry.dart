@@ -11,8 +11,8 @@ part of 'storage.dart';
 /// - Binary serialization (External Keep)
 @immutable
 class KeepMemoryValue {
-  /// Creates a new keep entry with the given [value] and [flags].
-  const KeepMemoryValue(this.value, this.flags);
+  /// Creates a new keep entry with the given [value], [flags], and optional [version].
+  const KeepMemoryValue(this.value, this.flags, {this.version = Keep.version});
 
   /// The stored value payload.
   ///
@@ -28,6 +28,9 @@ class KeepMemoryValue {
   /// - **Removable (Bit 0):** Indicates that the entry should be cleared when `clearRemovable()` is called.
   /// - *(Future Flags):* Compression, Expiry, etc.
   final int flags;
+
+  /// The version of the data package format.
+  final int version;
 
   /// Checks if the entry is marked as **Removable**.
   ///
@@ -48,9 +51,10 @@ class KeepMemoryValue {
     if (identical(this, other)) return true;
     return other is KeepMemoryValue &&
         other.value == value &&
-        other.flags == flags;
+        other.flags == flags &&
+        other.version == version;
   }
 
   @override
-  int get hashCode => Object.hash(value, flags);
+  int get hashCode => Object.hash(value, flags, version);
 }

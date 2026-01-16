@@ -9,6 +9,8 @@ class DefaultKeepExternalStorage extends KeepStorage {
   late Keep _keep;
   final Map<String, Future<void>> _queue = {};
 
+  /// Executes a file [action] by queuing it to prevent concurrent write/read conflicts
+  /// on the same [key].
   Future<T> _withQueue<T>(String key, Future<T> Function() action) async {
     final previous = _queue[key];
     final completer = Completer<void>();
@@ -26,6 +28,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Initializes the external storage by ensuring the 'external' directory exists.
   @override
   Future<void> init(Keep keep) async {
     try {
@@ -47,11 +50,13 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Generates the [File] object handle for a specific [key].
   @override
   F getEntry<F>(KeepKey<dynamic> key) {
     return File('${_root.path}/${key.storeName}') as F;
   }
 
+  /// Asynchronously reads a file's content and decodes the payload.
   @override
   Future<V?> read<V>(KeepKey<dynamic> key) async {
     try {
@@ -85,10 +90,13 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Synchronously reads a file's content and decodes the payload.
   @override
   V? readSync<V>(KeepKey<dynamic> key) {
     final file = getEntry<File>(key);
-    if (!file.existsSync()) return null;
+    if (!file.existsSync()) {
+      return null;
+    }
 
     final bytes = file.readAsBytesSync();
     if (bytes.isEmpty) {
@@ -99,6 +107,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     return entry?.value as V?;
   }
 
+  /// Writes a value to an external file using a temporary file for atomic updates.
   @override
   Future<void> write(KeepKey<dynamic> key, Object? value) async {
     try {
@@ -131,8 +140,11 @@ class DefaultKeepExternalStorage extends KeepStorage {
   }
 
   @override
-  bool existsSync(KeepKey<dynamic> key) => getEntry<File>(key).existsSync();
+  bool existsSync(KeepKey<dynamic> key) {
+    return getEntry<File>(key).existsSync();
+  }
 
+  /// Asynchronously checks if the file for [key] exists on disk.
   @override
   Future<bool> exists(KeepKey<dynamic> key) async {
     try {
@@ -161,12 +173,17 @@ class DefaultKeepExternalStorage extends KeepStorage {
       try {
         if (!file.existsSync()) continue;
 
-        final handle = await file.open(mode: FileMode.read);
-        int firstByte = -1;
+        final handle = await file.open();
+        var firstByte = -1;
         try {
           if (await file.length() > 0) {
-            // Header is first byte
-            firstByte = await handle.readByte();
+            // Headers are the first two bytes [Flags, Version].
+            // We must unShift the bytes since the entire payload is obfuscated.
+            final header = await handle.read(2);
+            if (header.length >= 2) {
+              final unShifted = KeepCodec.unShiftBytes(header);
+              firstByte = unShifted[0]; // Flags
+            }
           }
         } finally {
           await handle.close();
@@ -186,6 +203,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Deletes all files in the external storage directory.
   @override
   Future<void> clear() async {
     final names = await getEntries<String>();
@@ -208,6 +226,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Deletes the specific file associated with [key].
   @override
   Future<void> remove(KeepKey<dynamic> key) async {
     try {
@@ -233,6 +252,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     }
   }
 
+  /// Returns a list of filenames present in the external storage directory.
   @override
   Future<List<E>> getEntries<E>() async {
     final dir = Directory('${_keep.root.path}/external');
