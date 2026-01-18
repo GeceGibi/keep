@@ -123,6 +123,14 @@ class SubKeyManager<T> {
     return _keys.isNotEmpty || _file.existsSync();
   }
 
+  /// Returns all registered sub-keys as [KeepKey] instances.
+  ///
+  /// Re-registers each key via [KeepKey.call], but duplicates are ignored.
+  Future<List<KeepKey<T>>> get keys async {
+    await _ensureInitialized();
+    return _keys.map(_parent.call).toList();
+  }
+
   /// Removes a specific sub-key from the registry.
   Future<void> remove(KeepKey<T> key) async {
     await _ensureInitialized();

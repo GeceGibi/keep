@@ -1,3 +1,7 @@
+## [0.2.11]
+### Changed
+- Added documentation to `SubKeyManager.keys` getter.
+
 ## [0.2.10]
 ### Fixed
 - Fixed race condition in `SubKeyManager._ensureInitialized()` that could cause concurrent calls to run multiple `_performLoad()` operations.

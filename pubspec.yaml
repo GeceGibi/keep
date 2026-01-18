@@ -1,6 +1,6 @@
 name: keep
 description: "Typed, reactive, encrypted local storage for Flutter."
-version: 0.2.10
+version: 0.2.11
 homepage: https://github.com/GeceGibi/keep
 
 topics:
