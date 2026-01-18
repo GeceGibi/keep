@@ -1,3 +1,10 @@
+## [0.2.15]
+### Fixed
+- `SubKeyManager.clear()` now properly removes sub-key contents before clearing the registry.
+
+### Changed
+- Renamed internal debounce timer variables for consistency (`_debounceTimer`).
+
 ## [0.2.14]
 ### Changed
 - `SubKeyManager.exists` is now async and ensures initialization before checking.

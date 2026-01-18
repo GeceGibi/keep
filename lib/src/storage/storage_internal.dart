@@ -10,7 +10,7 @@ class KeepInternalStorage extends KeepStorage {
   /// In-memory cache of entries.
   Map<String, KeepMemoryValue> memory = {};
 
-  Timer? _saveDebounce;
+  Timer? _debounceTimer;
 
   /// Initializes the internal storage by loading the 'main.keep' file.
   @override
@@ -55,11 +55,8 @@ class KeepInternalStorage extends KeepStorage {
 
   /// Saves the current memory state to disk.
   Future<void> saveMemory() async {
-    if (_saveDebounce?.isActive ?? false) {
-      _saveDebounce!.cancel();
-    }
-
-    _saveDebounce = Timer(const Duration(milliseconds: 150), () async {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
       try {
         final currentMemory = Map<String, KeepMemoryValue>.from(memory);
         final bytes = await compute(KeepCodec.encodeAll, currentMemory);

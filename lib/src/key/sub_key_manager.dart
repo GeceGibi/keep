@@ -65,7 +65,6 @@ class SubKeyManager<T> extends ChangeNotifier {
     }
 
     _keys.add(key.name);
-
     _controller.add(.added);
     notifyListeners();
 
@@ -94,10 +93,10 @@ class SubKeyManager<T> extends ChangeNotifier {
     }
   }
 
-  Timer? _timer;
+  Timer? _debounceTimer;
   void _performSave() {
-    _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 150), () async {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
       try {
         // Atomic write: Write to temp file -> Rename
         final tempFile = File(
@@ -122,14 +121,19 @@ class SubKeyManager<T> extends ChangeNotifier {
 
   /// Clears all registered sub-keys from memory and disk.
   Future<void> clear() async {
-    _keys.clear();
-    _controller.add(.cleared);
-    notifyListeners();
+    await _ensureInitialized();
 
     try {
+      // Remove sub-key contents first
+      await Future.wait(_keys.map((key) => _parent.call(key).remove()));
+
       if (_file.existsSync()) {
         await _file.delete();
       }
+
+      _keys.clear();
+      _controller.add(.cleared);
+      notifyListeners();
     } catch (error, stackTrace) {
       final exception = KeepException<T>(
         'Failed to clear sub-key file',
@@ -159,16 +163,16 @@ class SubKeyManager<T> extends ChangeNotifier {
   /// Removes a specific sub-key from the registry.
   Future<void> remove(KeepKey<T> key) async {
     await _ensureInitialized();
+    await key.remove();
     _keys.remove(key.name);
     _controller.add(.removed);
     notifyListeners();
-
     _performSave();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _debounceTimer?.cancel();
     _controller.close().ignore();
     super.dispose();
   }
