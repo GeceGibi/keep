@@ -43,8 +43,13 @@ class KeepInternalStorage extends KeepStorage {
       );
 
       keep.onError?.call(exception);
+
+      // Delete corrupted file and continue with empty memory
+      try {
+        await _rootFile.delete();
+      } catch (_) {}
+
       memory = {};
-      throw exception;
     }
   }
 

@@ -1,3 +1,7 @@
+## [0.2.7]
+### Fixed
+- Internal storage now deletes corrupted files on decode failure instead of deadlocking.
+
 ## [0.2.6]
 ### Fixed
 - Added missing try-catch blocks to `SubKeyManager` I/O operations.

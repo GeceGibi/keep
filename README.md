@@ -278,6 +278,10 @@ Benchmarked with 1000 iterations per operation. See [`test/stress_test.dart`](te
 
 > Read operations benefit from in-memory caching. Write operations include disk I/O.
 
+## Storage Format
+
+Keep uses a proprietary binary format for internal storage. External modification or tampering with storage files may corrupt data. In such cases, Keep will automatically delete the corrupted file and recover with an empty state.
+
 ---
 
 ## Roadmap
