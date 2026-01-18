@@ -18,9 +18,6 @@ abstract class KeepStorage {
   /// Initializes the storage adapter with the main [keep] instance.
   Future<void> init(Keep keep);
 
-  /// Gets the raw storage object (e.g., [File]) for a given [key].
-  F getEntry<F>(KeepKey<dynamic> key);
-
   /// Synchronously reads content from storage.
   ///
   /// This bypasses the async queue for external storage and may block the UI thread.
@@ -41,8 +38,11 @@ abstract class KeepStorage {
   /// Synchronously checks if an entry exists for [key].
   bool existsSync(KeepKey<dynamic> key);
 
-  /// Returns a list of all raw entries in this storage.
-  FutureOr<List<E>> getEntries<E>();
+  /// Returns a list of all storage keys (storeNames) in this storage.
+  Future<List<String>> getKeys();
+
+  /// Removes multiple entries by their storage keys (storeNames).
+  Future<void> removeKeys(List<String> storeNames);
 
   /// Scans the storage and removes all entries marked with the **Removable** flag.
   ///

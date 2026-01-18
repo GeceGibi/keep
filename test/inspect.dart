@@ -65,6 +65,13 @@ void main() {
     final u2 = storage.users('u2');
     final u3 = storage.users('u3');
 
+    // Test: Sub-keys should be discoverable even before write()
+    print('\nBefore write() - toList():');
+    final keysBeforeWrite = await storage.users.keys.toList();
+    print(
+      'Found ${keysBeforeWrite.length} sub-keys: ${keysBeforeWrite.map((k) => k.name).toList()}',
+    );
+
     u1.stream.listen((_) => print('u1: changed'));
 
     await u1.write('u1-val');
@@ -73,9 +80,18 @@ void main() {
 
     print('Sub-keys created.');
 
-    // Listing logic (once implemented in SubKeyManager)
-    // final keys = await storage.users.subKeys.keys;
-    // print('Keys: $keys');
+    // Test SubKeyManager.toList()
+    print('\nTesting SubKeyManager.toList()...');
+    final subKeys = await storage.users.keys.toList();
+    print(
+      'Found ${subKeys.length} sub-keys: ${subKeys.map((k) => k.name).toList()}',
+    );
+
+    // Verify we can read from discovered keys
+    for (final key in subKeys) {
+      final value = await key.read();
+      print('  ${key.name} = $value');
+    }
 
     print('\nChecking values:');
     print('u1: ${await u1.read()}');
@@ -83,6 +99,25 @@ void main() {
     print('u3: ${await u3.read()}');
 
     print('Sub-keys: ${storage.users}');
+
+    // Test dynamic keys
+    print('\n--- Testing Dynamic Keys ---');
+    final cities = storage.users; // Reusing for test
+
+    for (var cityId in [1, 2, 3]) {
+      final counties = cities(cityId.toString());
+      await counties.write('City $cityId data');
+    }
+
+    print('Dynamic keys created (1, 2, 3)');
+
+    // Now instantiate only key "2" without writing
+    final key2Again = cities('2');
+    print('Instantiated key "2" again (no write)');
+
+    // toList should find: u1, u2, u3, 1, 2, 3 (from storage + registry)
+    final allKeys = await cities.keys.toList();
+    print('All keys found: ${allKeys.map((k) => k.name).toList()}');
 
     await Future<void>.delayed(const Duration(seconds: 1));
     print('\nData generated successfully! Check ${dir.path}');

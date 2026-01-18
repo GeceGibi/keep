@@ -29,31 +29,27 @@ class KeepCodec {
     try {
       final buffer = BytesBuilder();
 
-      entries.forEach((key, entry) {
-        final keyBytes = utf8.encode(key);
-        if (keyBytes.length > 255) return;
+      entries.forEach((storeName, entry) {
+        // Encode the payload with StoreName inside (Double shifting happens here)
+        final payloadBytes = encode(
+          storeName: storeName,
+          keyName: entry.name,
+          flags: entry.flags,
+          value: entry.value,
+        );
 
-        final jsonString = jsonEncode(entry.value);
-        final valBytes = utf8.encode(jsonString);
+        final payloadLen = payloadBytes.length;
 
-        // [KeyLen] [Key] [Flags] [Version] [Type] [ValLen] [Value]
+        // Internal Format: [PayloadLen(4)] [PayloadBytes(N)]
         buffer
-          ..addByte(keyBytes.length)
-          ..add(keyBytes)
-          ..addByte(entry.flags)
-          ..addByte(entry.version)
-          ..addByte(entry.type.byte);
-
-        final valLen = valBytes.length;
-        buffer
-          ..addByte((valLen >> 24) & 0xFF)
-          ..addByte((valLen >> 16) & 0xFF)
-          ..addByte((valLen >> 8) & 0xFF)
-          ..addByte(valLen & 0xFF)
-          // Add value
-          ..add(valBytes);
+          ..addByte((payloadLen >> 24) & 0xFF)
+          ..addByte((payloadLen >> 16) & 0xFF)
+          ..addByte((payloadLen >> 8) & 0xFF)
+          ..addByte(payloadLen & 0xFF)
+          ..add(payloadBytes);
       });
 
+      // Shift the entire block at once
       return shiftBytes(buffer.toBytes());
     } catch (error, stackTrace) {
       throw KeepException<dynamic>(
@@ -74,23 +70,9 @@ class KeepCodec {
       var offset = 0;
 
       while (offset < data.length) {
-        if (offset + 1 > data.length) break;
-
-        // 1. Read Key
-        final keyLen = data[offset++];
-        if (offset + keyLen > data.length) break;
-        final key = utf8.decode(data.sublist(offset, offset + keyLen));
-        offset += keyLen;
-
-        // 2. Read Flags, Version & Type
-        if (offset + 3 > data.length) break;
-        final flags = data[offset++];
-        final version = data[offset++];
-        final type = data[offset++];
-
-        // 3. Read Value Length
+        // Read Payload Length
         if (offset + 4 > data.length) break;
-        final valLen =
+        final payloadLen =
             ((data[offset] << 24) |
                     (data[offset + 1] << 16) |
                     (data[offset + 2] << 8) |
@@ -98,21 +80,17 @@ class KeepCodec {
                 .toUnsigned(32);
         offset += 4;
 
-        if (offset + valLen > data.length) break;
+        if (offset + payloadLen > data.length) break;
 
-        // 4. Read Value
-        final jsonString = utf8.decode(data.sublist(offset, offset + valLen));
-        final value = jsonDecode(jsonString);
-        offset += valLen;
+        // Read Payload
+        final payloadBytes = data.sublist(offset, offset + payloadLen);
+        final entry = decode(payloadBytes);
 
-        map[key] = KeepMigration.migrate(
-          KeepMemoryValue(
-            value,
-            flags,
-            version: version,
-            type: KeepType.fromByte(type),
-          ),
-        );
+        if (entry != null) {
+          map[entry.storeName] = entry;
+        }
+
+        offset += payloadLen;
       }
 
       return map;
@@ -125,17 +103,45 @@ class KeepCodec {
     }
   }
 
-  /// Encodes a single payload (for External Storage).
-  static Uint8List encodePayload(dynamic value, int flags) {
+  /// Encodes a single payload
+  static Uint8List encode({
+    required String storeName,
+    required String keyName,
+    required int flags,
+    required dynamic value,
+  }) {
     try {
       final buffer = BytesBuilder();
       final jsonString = jsonEncode(value);
       final valBytes = utf8.encode(jsonString);
+      final keyNameBytes = utf8.encode(keyName);
+      final storeNameBytes = utf8.encode(storeName);
 
-      // [Flags] [Version] [Type] [JSON]
+      if (keyNameBytes.length > 255) {
+        throw KeepException<dynamic>('Key name too long: $keyName');
+      }
+
+      if (storeNameBytes.length > 255) {
+        throw KeepException<dynamic>('Store name too long: $storeName');
+      }
+
+      // FORMAT:
+      // [StoreNameLen(1)]
+      // [StoreNameBytes(N)]
+      // [NameLen(1)]
+      // [NameBytes(N)]
+      // [Flags(1)]
+      // [Version(1)]
+      // [Type(1)]
+      // [JSON(N)]
+
       final type = inferType(value);
 
       buffer
+        ..addByte(storeNameBytes.length)
+        ..add(storeNameBytes)
+        ..addByte(keyNameBytes.length)
+        ..add(keyNameBytes)
         ..addByte(flags)
         ..addByte(Keep.version)
         ..addByte(type.byte)
@@ -151,42 +157,102 @@ class KeepCodec {
     }
   }
 
-  /// Decodes a binary payload into a [KeepMemoryValue] (for External Storage).
-  static KeepMemoryValue? decodePayload(Uint8List bytes) {
-    if (bytes.isEmpty) {
-      return null;
-    }
-
-    final data = unShiftBytes(bytes);
-    if (data.length < 3) {
-      return null;
-    }
-
-    final flags = data[0];
-    final version = data[1];
-    final type = data[2];
+  /// Decodes a binary payload into a [KeepMemoryValue].
+  static KeepMemoryValue? decode(Uint8List bytes) {
+    if (bytes.isEmpty) return null;
 
     try {
-      final jsonBytes = data.sublist(3);
+      // Un-shift first
+      final data = unShiftBytes(Uint8List.fromList(bytes));
+
+      if (data.length < 5) {
+        // Min: StoreLen(1) + NameLen(1) + Flags(1) + Ver(1) + Type(1) = 5
+        return null;
+      }
+
+      var offset = 0;
+
+      // 1. Read Store Name
+      final storeNameLen = data[offset++];
+      if (offset + storeNameLen > data.length) return null;
+      final storeName = utf8.decode(
+        data.sublist(offset, offset + storeNameLen),
+      );
+      offset += storeNameLen;
+
+      // 2. Read Original Key Name
+      if (offset + 1 > data.length) return null;
+      final nameLen = data[offset++];
+      if (offset + nameLen > data.length) return null;
+      final originalKey = utf8.decode(data.sublist(offset, offset + nameLen));
+      offset += nameLen;
+
+      // 3. Read Metadata
+      if (offset + 3 > data.length) return null;
+      final flags = data[offset++];
+      final version = data[offset++];
+      final type = data[offset++];
+
+      // 4. Read JSON Value
+      final jsonBytes = data.sublist(offset);
       final jsonString = utf8.decode(jsonBytes);
       final value = jsonDecode(jsonString);
 
       return KeepMigration.migrate(
         KeepMemoryValue(
-          value,
-          flags,
+          value: value,
+          flags: flags,
+          name: originalKey,
+          storeName: storeName,
           version: version,
           type: KeepType.fromByte(type),
         ),
       );
-    } catch (error, stackTrace) {
-      final exception = KeepException<dynamic>(
-        'Failed to decode payload',
-        stackTrace: stackTrace,
-        error: error,
-      );
+    } catch (error) {
+      // Ignore legacy format or corrupted data
+      return null;
+    }
+  }
 
-      throw exception;
+  /// Parses header metadata from unshifted content bytes.
+  ///
+  /// Returns a record with (storeName, name, flags) or null if parsing fails.
+  /// This is useful for reading metadata without fully decoding the payload.
+  static ({String storeName, String name, int flags})? parseHeader(
+    Uint8List unShiftedData,
+  ) {
+    if (unShiftedData.length < 5) {
+      // Min: StoreLen(1) + NameLen(1) + Flags(1) + Ver(1) + Type(1) = 5
+      return null;
+    }
+
+    try {
+      var offset = 0;
+
+      // 1. Read StoreName
+      final storeNameLen = unShiftedData[offset++];
+      if (offset + storeNameLen > unShiftedData.length) return null;
+
+      final storeName = utf8.decode(
+        unShiftedData.sublist(offset, offset + storeNameLen),
+      );
+      offset += storeNameLen;
+
+      // 2. Read Original Name
+      if (offset + 1 > unShiftedData.length) return null;
+      final nameLen = unShiftedData[offset++];
+      if (offset + nameLen > unShiftedData.length) return null;
+
+      final name = utf8.decode(unShiftedData.sublist(offset, offset + nameLen));
+      offset += nameLen;
+
+      // 3. Read Flags
+      if (offset >= unShiftedData.length) return null;
+      final flags = unShiftedData[offset];
+
+      return (storeName: storeName, name: name, flags: flags);
+    } catch (_) {
+      return null;
     }
   }
 

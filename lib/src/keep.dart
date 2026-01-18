@@ -33,6 +33,7 @@ class Keep {
 
   /// Current binary format version of the keep storage.
   @internal
+  @protected
   static const int version = 1;
 
   /// Internal list of keys collected during class field initialization.
@@ -49,10 +50,12 @@ class Keep {
 
   /// The encrypter used for [KeepKeySecure].
   @internal
+  @protected
   final KeepEncrypter encrypter;
 
   /// External storage implementation for large datasets.
   @internal
+  @protected
   final KeepStorage externalStorage;
 
   /// Callback invoked when a [KeepException] occurs.
@@ -66,6 +69,7 @@ class Keep {
 
   /// The root directory where keep files are stored.
   @internal
+  @protected
   Directory get root => Directory('$_path/$_folderName');
 
   /// Internal controller used to dispatch change events to [onChange].
@@ -73,6 +77,7 @@ class Keep {
   /// Every time a [KeepKey] writes data, it adds itself to this controller
   /// to notify listeners of the value change.
   @internal
+  @protected
   final StreamController<KeepKey<dynamic>> onChangeController =
       StreamController<KeepKey<dynamic>>.broadcast();
 
@@ -81,6 +86,7 @@ class Keep {
 
   /// Core storage for memory-based keep (main metadata and small values).
   @internal
+  @protected
   final internalStorage = KeepInternalStorage();
 
   /// Completer for initialization.
@@ -88,6 +94,7 @@ class Keep {
 
   /// Waits for [init] to complete. Safe to call multiple times.
   @internal
+  @protected
   Future<void> get ensureInitialized => _initCompleter.future;
 
   /// The registry of all [KeepKey] created for this keep.

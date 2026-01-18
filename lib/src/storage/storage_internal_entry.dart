@@ -12,12 +12,20 @@ part of 'storage.dart';
 @immutable
 class KeepMemoryValue {
   /// Creates a new keep entry with the given [value], [flags], optional [version] and [type].
-  KeepMemoryValue(
-    this.value,
-    this.flags, {
+  KeepMemoryValue({
+    required this.value,
+    required this.flags,
+    required this.name,
+    required this.storeName,
     this.version = Keep.version,
     KeepType? type,
   }) : type = type ?? KeepCodec.inferType(value);
+
+  /// The original key name.
+  final String name;
+
+  /// The hashed key name (StoreName) used for file system and map keys.
+  final String storeName;
 
   /// The stored value payload.
   final dynamic value;
@@ -39,12 +47,13 @@ class KeepMemoryValue {
 
   @override
   String toString() =>
-      'KeepMemoryValue(value: $value, flags: $flags, type: $type, isRemovable: $isRemovable, isSecure: $isSecure)';
+      'KeepMemoryValue(name: $name, value: $value, flags: $flags, type: $type, isRemovable: $isRemovable, isSecure: $isSecure)';
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is KeepMemoryValue &&
+        other.name == name &&
         other.value == value &&
         other.flags == flags &&
         other.version == version &&
@@ -52,5 +61,5 @@ class KeepMemoryValue {
   }
 
   @override
-  int get hashCode => Object.hash(value, flags, version, type);
+  int get hashCode => Object.hash(name, value, flags, version, type);
 }

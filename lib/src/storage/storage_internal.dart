@@ -95,7 +95,12 @@ class KeepInternalStorage extends KeepStorage {
       flags |= KeepCodec.flagSecure;
     }
 
-    memory[key.storeName] = KeepMemoryValue(value, flags);
+    memory[key.storeName] = KeepMemoryValue(
+      value: value,
+      flags: flags,
+      name: key.name,
+      storeName: key.storeName,
+    );
     unawaited(saveMemory());
   }
 
@@ -104,6 +109,16 @@ class KeepInternalStorage extends KeepStorage {
   Future<void> remove(KeepKey<dynamic> key) async {
     memory.remove(key.storeName);
     unawaited(saveMemory());
+  }
+
+  /// Removes multiple entries from memory by their storage keys.
+  @override
+  Future<void> removeKeys(List<String> storeNames) async {
+    storeNames.forEach(memory.remove);
+
+    if (storeNames.isNotEmpty) {
+      await saveMemory();
+    }
   }
 
   /// Clears all entries from the internal storage.
@@ -147,19 +162,7 @@ class KeepInternalStorage extends KeepStorage {
   }
 
   @override
-  F getEntry<F>(KeepKey<dynamic> key) {
-    final entry = memory[key.storeName];
-    if (entry == null) {
-      throw KeepException<dynamic>(
-        'Key "${key.storeName}" not found in internal storage',
-      );
-    }
-    return entry as F;
-  }
-
-  @override
-  List<E> getEntries<E>() {
-    /// Returns a list of all raw entries in memory.
-    return memory.entries.toList().cast<E>();
+  Future<List<String>> getKeys() async {
+    return memory.keys.toList();
   }
 }

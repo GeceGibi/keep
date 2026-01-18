@@ -1,5 +1,9 @@
+
 include: package:very_good_analysis/analysis_options.yaml
 
-linter:
-  rules:
-    avoid_catches_without_on_clauses: false
+
+analyzer:
+  errors:
+    invalid_use_of_protected_member: ignore
+    avoid_catches_without_on_clauses: ignore
+

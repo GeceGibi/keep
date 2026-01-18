@@ -1,3 +1,15 @@
+## [0.3.0]
+### Changed
+- **Breaking:** `SubKeyManager.toList()` now works without requiring a meta-file.
+- **Breaking:** Storage format updated. Old data will be treated as non-existent and ignored.
+
+### Added
+- `SubKeyManager.toList()` now finds sub-keys even if they haven't been written yet in the current session.
+- `clearRemovable()` can now remove all removable sub-keys, even those not accessed in the current session.
+
+### Fixed
+- Improved reliability of sub-key discovery across app restarts.
+
 ## [0.2.16]
 ### Fixed
 - Fixed a deadlock in `KeepKey.remove` when notifying the parent `SubKeyManager`.

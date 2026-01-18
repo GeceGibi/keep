@@ -14,7 +14,7 @@ enum SubKeyEvent {
 
 /// Manages registration and persistence of sub-keys.
 ///
-/// Sub-keys are stored in a separate file (hashed) associated with the parent key.
+/// Sub-keys are dynamically resolved from storage using the parent's prefix.
 class SubKeyManager<T> extends ChangeNotifier {
   /// Creates a [SubKeyManager] for the given [parent] key.
   SubKeyManager(this._parent);
@@ -23,130 +23,59 @@ class SubKeyManager<T> extends ChangeNotifier {
   /// Stream controller for sub-key events.
   final _controller = StreamController<SubKeyEvent>.broadcast();
 
+  /// In-memory registry of instantiated sub-keys (even if not yet written).
+  final _instantiatedKeys = <String>{};
+
   /// A stream of sub-key events (added, removed, cleared).
   Stream<SubKeyEvent> get stream => _controller.stream;
 
-  /// In-memory cache of registered sub-key names.
-  final _keys = <String>[];
-
-  /// Completer for initialization.
-  Completer<void>? _completer;
-
-  /// Ensures the sub-key manager is initialized.
-  Future<void> _ensureInitialized() async {
-    if (_completer != null) {
-      return _completer!.future;
-    }
-
-    _completer = Completer<void>();
-    try {
-      await _performLoad();
-      _completer!.complete();
-    } catch (e) {
-      _completer!.completeError(e);
-      rethrow;
-    }
-  }
-
-  /// The file name for storing sub-key names, derived from the parent key's name.
-  late final String _fileName = KeepCodec.generateHash('${_parent.name}\$sk');
-
-  /// File path: `root/hash(parentName$sk)`
-  File get _file => File('${_parent._keep.root.path}/$_fileName');
-
   /// Registers a sub-key name synchronously.
   ///
-  /// Adds to memory immediately and schedules a background sync to merge with disk.
+  /// Tracks the key in memory even if it hasn't been written to storage yet.
   Future<void> _register(KeepKey<T> key) async {
-    await _ensureInitialized();
-
-    if (_keys.contains(key.name)) {
-      return;
-    }
-
-    _keys.add(key.name);
+    _instantiatedKeys.add(key.name);
     _controller.add(.added);
     notifyListeners();
-
-    _performSave();
   }
 
   /// Removes a specific sub-key from the registry.
   Future<void> _unregister(KeepKey<T> key) async {
-    await _ensureInitialized();
-    _keys.remove(key.name);
+    _instantiatedKeys.remove(key.name);
     _controller.add(.removed);
     notifyListeners();
-    _performSave();
   }
 
-  /// Loads sub-key names from disk into memory.
-  Future<void> _performLoad() async {
-    if (_file.existsSync()) {
-      final bytes = await _file.readAsBytes();
-      try {
-        final decoded = KeepCodec.decodePayload(bytes);
-        if (decoded?.value is List) {
-          _keys.addAll((decoded!.value as List).cast());
-        }
-      } catch (error, stackTrace) {
-        final exception = KeepException<T>(
-          'Failed to decode sub-key file',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        _parent._keep.onError?.call(exception);
-        throw exception;
-      }
-    }
-  }
-
-  Timer? _debounceTimer;
-  void _performSave() {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
-      try {
-        // Atomic write: Write to temp file -> Rename
-        final tempFile = File(
-          '${_file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
-        );
-
-        // Use KeepCodec to encode (Shift bytes)
-        await tempFile.writeAsBytes(KeepCodec.encodePayload(_keys, 0));
-        await tempFile.rename(_file.path);
-      } catch (error, stackTrace) {
-        final exception = KeepException<T>(
-          'Failed to save sub-key file',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        _parent._keep.onError?.call(exception);
-        throw exception;
-      }
-    });
-  }
-
-  /// Clears all registered sub-keys from memory and disk.
+  /// Clears all sub-keys associated with the parent key from memory and disk.
   Future<void> clear() async {
-    await _ensureInitialized();
-    _debounceTimer?.cancel();
+    await _parent._keep.ensureInitialized;
 
     try {
-      // Remove sub-key contents first
-      await Future.wait(_keys.map((key) => _parent.call(key).remove()));
+      final prefix = '${_parent.storeName}\$';
 
-      if (_file.existsSync()) {
-        await _file.delete();
-      }
+      // 1. Clear Internal Storage
+      final internalKeys = await _parent._keep.internalStorage.getKeys();
+      final toRemoveInternal = internalKeys
+          .where((k) => k.startsWith(prefix))
+          .toList();
 
-      _keys.clear();
+      await _parent._keep.internalStorage.removeKeys(toRemoveInternal);
+
+      // 2. Clear External Storage
+      final externalKeys = await _parent._keep.externalStorage.getKeys();
+      final toRemoveExternal = externalKeys
+          .where((k) => k.startsWith(prefix))
+          .toList();
+
+      await _parent._keep.externalStorage.removeKeys(toRemoveExternal);
+
+      // 3. Clear in-memory registry
+      _instantiatedKeys.clear();
+
       _controller.add(.cleared);
       notifyListeners();
     } catch (error, stackTrace) {
       final exception = KeepException<T>(
-        'Failed to clear sub-key file',
+        'Failed to clear sub-keys',
         error: error,
         stackTrace: stackTrace,
       );
@@ -156,23 +85,76 @@ class SubKeyManager<T> extends ChangeNotifier {
     }
   }
 
-  /// Returns `true` if sub-keys exist in memory or on disk.
-  Future<bool> get exists async {
-    await _ensureInitialized();
-    return _keys.isNotEmpty;
-  }
-
   /// Returns all registered sub-keys as [KeepKey] instances.
   ///
-  /// Re-registers each key via [KeepKey.call], but duplicates are ignored.
+  /// Recovers original key names from storage headers and in-memory registry.
   Future<List<KeepKey<T>>> toList() async {
-    await _ensureInitialized();
-    return _keys.map(_parent.call).toList();
+    await _parent._keep.ensureInitialized;
+
+    final prefix = '${_parent.storeName}\$';
+    final foundNames = <String>{};
+    final internalStorage = _parent._keep.internalStorage;
+
+    // 1. Add instantiated keys (even if not written yet)
+    foundNames.addAll(_instantiatedKeys);
+
+    // 2. Scan Internal Memory
+    for (final entry in internalStorage.memory.values) {
+      if (entry.storeName.startsWith(prefix)) {
+        foundNames.add(entry.name);
+      }
+    }
+
+    // 2. Scan External Storage
+    final externalKeys = await _parent._keep.externalStorage.getKeys();
+
+    for (final storeName in externalKeys) {
+      if (!storeName.startsWith(prefix)) continue;
+
+      try {
+        final root = _parent._keep.root;
+        final file = File('${root.path}/external/$storeName');
+
+        if (!file.existsSync()) continue;
+
+        final handle = await file.open();
+        try {
+          final fileLen = await file.length();
+          if (fileLen == 0) continue;
+
+          // Read header chunk (512 bytes should be enough)
+          var readSize = 512;
+          if (readSize > fileLen) readSize = fileLen;
+
+          await handle.setPosition(0);
+          final buffer = await handle.read(readSize);
+          final unShifted = KeepCodec.unShiftBytes(buffer);
+
+          // Parse header using helper
+          final header = KeepCodec.parseHeader(unShifted);
+
+          if (header != null) {
+            foundNames.add(header.name);
+          }
+        } finally {
+          await handle.close();
+        }
+      } catch (_) {
+        // Ignore read errors for individual files
+      }
+    }
+
+    // 3. Convert to KeepKey list
+    final result = <KeepKey<T>>[];
+    for (final name in foundNames) {
+      result.add(_parent.call(name));
+    }
+
+    return result;
   }
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
     _controller.close().ignore();
     super.dispose();
   }

@@ -60,11 +60,13 @@ abstract class KeepKey<T> {
   ///
   /// This is the hashed version of [name].
   String get storeName {
+    final hashedName = KeepCodec.generateHash(name);
+
     if (_parent == null) {
-      return KeepCodec.generateHash(name);
+      return hashedName;
     }
 
-    return KeepCodec.generateHash('${_parent!.name}\$$name');
+    return '${_parent!.storeName}\$$hashedName';
   }
 
   /// Whether this key is marked as 'removable'.
