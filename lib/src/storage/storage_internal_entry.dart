@@ -16,7 +16,7 @@ class KeepMemoryValue {
     this.value,
     this.flags, {
     this.version = Keep.version,
-    KeepValueType? type,
+    KeepType? type,
   }) : type = type ?? KeepCodec.inferType(value);
 
   /// The stored value payload.
@@ -29,7 +29,7 @@ class KeepMemoryValue {
   final int version;
 
   /// The type of the stored value.
-  final KeepValueType type;
+  final KeepType type;
 
   /// Checks if the entry is marked as **Removable**.
   bool get isRemovable => (flags & KeepCodec.flagRemovable) != 0;

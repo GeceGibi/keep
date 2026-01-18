@@ -39,7 +39,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
           ..bind(_keep)
           .._parent = this;
 
-    subKeys.register(key);
+    keys.register(key);
     return key;
   }
 
@@ -49,8 +49,14 @@ class KeepKeySecure<T> extends KeepKey<T> {
   /// Converts typed object [T] to raw storage data.
   final Object? Function(T value) toStorage;
 
+  T? _cachedValue;
+
   @override
   T? readSync() {
+    if (_cachedValue != null) {
+      return _cachedValue;
+    }
+
     try {
       final encrypted = switch (useExternal) {
         true => externalStorage.readSync<String>(this),
@@ -64,12 +70,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
       final decrypted = _keep.encrypter.decryptSync(encrypted);
       final decoded = jsonDecode(decrypted);
 
-      // Migration Guard: Handle legacy { 'k': name, 'v': value } format
-      if (decoded is Map && decoded.containsKey('v')) {
-        return fromStorage(decoded['v']);
-      }
-
-      return fromStorage(decoded);
+      return _cachedValue ??= fromStorage(decoded);
     } on KeepException<dynamic> {
       unawaited(remove());
       return null;
@@ -91,6 +92,10 @@ class KeepKeySecure<T> extends KeepKey<T> {
   Future<T?> read() async {
     await _keep.ensureInitialized;
 
+    if (_cachedValue != null) {
+      return _cachedValue;
+    }
+
     try {
       final encrypted = switch (useExternal) {
         true => await externalStorage.read<String>(this),
@@ -104,12 +109,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
       final decrypted = await _keep.encrypter.decrypt(encrypted);
       final decoded = await compute(jsonDecode, decrypted);
 
-      // Migration Guard: Handle legacy { 'k': name, 'v': value } format
-      if (decoded is Map && decoded.containsKey('v')) {
-        return fromStorage(decoded['v']);
-      }
-
-      return fromStorage(decoded);
+      return _cachedValue ??= fromStorage(decoded);
     } on KeepException<dynamic> {
       unawaited(remove());
       return null;
@@ -131,36 +131,40 @@ class KeepKeySecure<T> extends KeepKey<T> {
   Future<void> write(T value) async {
     await _keep.ensureInitialized;
 
+    // Invalidate cached value
+    _cachedValue = null;
+
     if (value == null) {
       await remove();
-      return;
-    }
+    } else {
+      try {
+        final payload = toStorage(value);
 
-    try {
-      final payload = toStorage(value);
+        final encrypted = await _keep.encrypter.encrypt(
+          await compute(jsonEncode, payload),
+        );
 
-      final encrypted = await _keep.encrypter.encrypt(
-        await compute(jsonEncode, payload),
-      );
+        _keep.onChangeController.add(this);
 
-      _keep.onChangeController.add(this);
+        if (useExternal) {
+          await externalStorage.write(this, encrypted);
+        } else {
+          await _keep.internalStorage.write(this, encrypted);
+        }
+      } on KeepException<dynamic> {
+        rethrow;
+      } catch (error, stackTrace) {
+        final exception = toException(
+          error.toString(),
+          error: error,
+          stackTrace: stackTrace,
+        );
 
-      if (useExternal) {
-        await externalStorage.write(this, encrypted);
-      } else {
-        await _keep.internalStorage.write(this, encrypted);
+        _keep.onError?.call(exception);
+        throw exception;
       }
-    } on KeepException<dynamic> {
-      rethrow;
-    } catch (error, stackTrace) {
-      final exception = toException(
-        error.toString(),
-        error: error,
-        stackTrace: stackTrace,
-      );
-
-      _keep.onError?.call(exception);
-      throw exception;
     }
+
+    _keep.onChangeController.add(this);
   }
 }

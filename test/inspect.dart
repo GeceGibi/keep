@@ -61,9 +61,15 @@ void main() {
     // 5. Sub-keys
     print('Creating simple sub-keys...');
 
-    await storage.users('u1').write('u1-val');
-    await storage.users('u2').write('u2-val');
-    await storage.users('u3').write('u3-val');
+    final u1 = storage.users('u1');
+    final u2 = storage.users('u2');
+    final u3 = storage.users('u3');
+
+    u1.listen((_) => print('u1: changed'));
+
+    await u1.write('u1-val');
+    await u2.write('u2-val');
+    await u3.write('u3-val');
 
     print('Sub-keys created.');
 
@@ -72,11 +78,11 @@ void main() {
     // print('Keys: $keys');
 
     print('\nChecking values:');
-    print('u1: ${await storage.users('u1').read()}');
-    print('u2: ${await storage.users('u2').read()}');
-    print('u3: ${await storage.users('u3').read()}');
+    print('u1: ${await u1.read()}');
+    print('u2: ${await u2.read()}');
+    print('u3: ${await u3.read()}');
 
-    print('Sub-keys: ${storage.users.subKeys.keys}');
+    print('Sub-keys: ${storage.users}');
 
     await Future<void>.delayed(const Duration(seconds: 1));
     print('\nData generated successfully! Check ${dir.path}');

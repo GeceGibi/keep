@@ -1,3 +1,16 @@
+## [0.2.5]
+### Added
+- Added memory cache for `KeepKeyPlain` and `KeepKeySecure` read operations.
+- Added `clear()` and `remove()` methods to `SubKeyManager`.
+
+### Changed
+- Renamed `KeepValueType` to `KeepType`.
+- Replaced `tUnknown` with `tNull` and added `tBytes` for `Uint8List` support.
+
+### Performance
+- Read operations now return cached values, significantly improving throughput.
+- See `test/stress_test.dart` for benchmarks.
+
 ## [0.2.4]
 ### Changed
 - Added `@mustCallSuper` annotation to `Keep.init()` method.

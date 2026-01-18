@@ -74,7 +74,7 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
   final bool removable;
 
   /// Manages sub-key registration and persistence.
-  late final SubKeyManager<T> subKeys = SubKeyManager<T>(this);
+  late final SubKeyManager<T> keys = SubKeyManager<T>(this);
 
   /// Creates a sub-key by appending [subKeyName] to the current [name].
   KeepKey<T> call(String subKeyName);
@@ -205,6 +205,30 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
       } else {
         await _keep.internalStorage.remove(this);
       }
+
+      if (_parent != null) {
+        await _parent!.keys.remove(this);
+      }
+    } on KeepException<dynamic> {
+      rethrow;
+    } catch (e, s) {
+      final exception = toException(
+        e.toString(),
+        error: e,
+        stackTrace: s,
+      );
+
+      _keep.onError?.call(exception);
+      throw exception;
+    }
+  }
+
+  /// Removes all sub-keys registered under this key.
+  Future<void> removeKeys() async {
+    await _keep.ensureInitialized;
+
+    try {
+      await keys.clear();
     } on KeepException<dynamic> {
       rethrow;
     } catch (e, s) {

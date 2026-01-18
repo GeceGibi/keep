@@ -1,83 +1,5 @@
 part of 'utils.dart';
 
-/// Represents the type of a stored value in binary format.
-enum KeepValueType {
-  /// Unknown type.
-  tUnknown(0),
-
-  /// Integer type.
-  tInt(1),
-
-  /// Double type.
-  tDouble(2),
-
-  /// Boolean type.
-  tBool(3),
-
-  /// String type.
-  tString(4),
-
-  /// List type.
-  tList(5),
-
-  /// Map type.
-  tMap(6)
-  ;
-
-  const KeepValueType(this.byte);
-
-  /// The byte value used in binary encoding.
-  final int byte;
-
-  /// Returns the [KeepValueType] for the given [byte], or null if not found.
-  static KeepValueType? fromByte(int byte) {
-    for (final type in values) {
-      if (type.byte == byte) return type;
-    }
-    return null;
-  }
-
-  /// Parses the raw [value] to the expected type.
-  T? parse<T>(Object? value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (this == tInt) {
-      final parsed = value is int ? value : int.tryParse(value.toString());
-      return parsed as T?;
-    }
-
-    if (this == tDouble) {
-      final parsed = value is double
-          ? value
-          : (value is num
-                ? value.toDouble()
-                : double.tryParse(value.toString()));
-      return parsed as T?;
-    }
-
-    if (this == tBool) {
-      final parsed = value is bool ? value : (value == 'true' || value == 1);
-      return parsed as T?;
-    }
-
-    if (this == tString) {
-      return value.toString() as T?;
-    }
-
-    if (this == tList) {
-      return (value is List ? value : null) as T?;
-    }
-
-    if (this == tMap) {
-      return (value is Map ? value : null) as T?;
-    }
-
-    return null;
-  }
-}
-
 /// Handles binary encoding and decoding of Keep data structures.
 class KeepCodec {
   /// Flag bitmask for **Removable** keys (Bit 0).
@@ -88,15 +10,18 @@ class KeepCodec {
   @internal
   static const int flagSecure = 2;
 
-  /// Infers the [KeepValueType] from a dynamic value.
-  static KeepValueType inferType(Object? value) {
-    if (value is int) return .tInt;
-    if (value is double) return .tDouble;
-    if (value is bool) return .tBool;
-    if (value is String) return .tString;
-    if (value is List) return .tList;
-    if (value is Map) return .tMap;
-    return .tUnknown;
+  /// Infers the [KeepType] from a dynamic value.
+  static KeepType inferType(Object? value) {
+    return switch (value) {
+      int() => .tInt,
+      double() => .tDouble,
+      bool() => .tBool,
+      String() => .tString,
+      Uint8List() => .tBytes,
+      List() => .tList,
+      Map() => .tMap,
+      _ => .tNull,
+    };
   }
 
   /// Encodes all entries into a single binary block (for Internal Storage).
@@ -176,7 +101,7 @@ class KeepCodec {
           value,
           flags,
           version: version,
-          type: KeepValueType.fromByte(type),
+          type: KeepType.fromByte(type),
         ),
       );
     }
@@ -192,6 +117,7 @@ class KeepCodec {
 
     // [Flags] [Version] [Type] [JSON]
     final type = inferType(value);
+
     buffer
       ..addByte(flags)
       ..addByte(Keep.version)
@@ -226,7 +152,7 @@ class KeepCodec {
           value,
           flags,
           version: version,
-          type: KeepValueType.fromByte(type),
+          type: KeepType.fromByte(type),
         ),
       );
     } catch (error, stackTrace) {

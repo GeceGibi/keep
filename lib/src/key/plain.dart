@@ -27,6 +27,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   /// Optional converter from typed object [T] to storage.
   final Object? Function(T value)? toStorage;
 
+  T? _cachedValue;
+
   @override
   KeepKeyPlain<T> call(String subKeyName) {
     final key =
@@ -41,13 +43,16 @@ class KeepKeyPlain<T> extends KeepKey<T> {
           ..bind(_keep)
           .._parent = this;
 
-    subKeys.register(key);
-
+    keys.register(key);
     return key;
   }
 
   @override
   T? readSync() {
+    if (_cachedValue != null) {
+      return _cachedValue;
+    }
+
     try {
       final raw = switch (useExternal) {
         true => externalStorage.readSync<dynamic>(this),
@@ -56,7 +61,9 @@ class KeepKeyPlain<T> extends KeepKey<T> {
 
       if (raw == null) return null;
 
-      return fromStorage != null ? fromStorage!(raw) : raw as T?;
+      return _cachedValue ??= fromStorage != null
+          ? fromStorage!(raw)
+          : raw as T?;
     } on KeepException<dynamic> {
       unawaited(remove());
       return null;
@@ -77,6 +84,10 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   Future<T?> read() async {
     await _keep.ensureInitialized;
 
+    if (_cachedValue != null) {
+      return _cachedValue;
+    }
+
     try {
       final raw = await (useExternal
           ? externalStorage.read<dynamic>(this)
@@ -84,7 +95,9 @@ class KeepKeyPlain<T> extends KeepKey<T> {
 
       if (raw == null) return null;
 
-      return fromStorage != null ? fromStorage!(raw) : raw as T?;
+      return _cachedValue ??= fromStorage != null
+          ? fromStorage!(raw)
+          : raw as T?;
     } on KeepException<dynamic> {
       unawaited(remove());
       return null;
@@ -105,32 +118,34 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   Future<void> write(T value) async {
     await _keep.ensureInitialized;
 
-    _keep.onChangeController.add(this);
+    // Invalidate cache
+    _cachedValue = null;
 
     if (value == null) {
       await remove();
-      return;
-    }
+    } else {
+      try {
+        final storageValue = toStorage != null ? toStorage!(value) : value;
 
-    try {
-      final storageValue = toStorage != null ? toStorage!(value) : value;
+        if (useExternal) {
+          await externalStorage.write(this, storageValue);
+        } else {
+          await _keep.internalStorage.write(this, storageValue);
+        }
+      } on KeepException<dynamic> {
+        rethrow;
+      } catch (error, stackTrace) {
+        final exception = toException(
+          error.toString(),
+          error: error,
+          stackTrace: stackTrace,
+        );
 
-      if (useExternal) {
-        await externalStorage.write(this, storageValue);
-      } else {
-        await _keep.internalStorage.write(this, storageValue);
+        _keep.onError?.call(exception);
+        throw exception;
       }
-    } on KeepException<dynamic> {
-      rethrow;
-    } catch (error, stackTrace) {
-      final exception = toException(
-        error.toString(),
-        error: error,
-        stackTrace: stackTrace,
-      );
-
-      _keep.onError?.call(exception);
-      throw exception;
     }
+
+    _keep.onChangeController.add(this);
   }
 }

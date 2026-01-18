@@ -21,7 +21,7 @@ Add keep to your pubspec.yaml:
 
 ```yaml
 dependencies:
-  keep: ^0.2.3
+  keep: ^0.2.5
 ```
 
 ---
@@ -261,6 +261,24 @@ await aliceSettings.write('Dark Mode');
 - **KeepKey<T>**: Handle for data access. Supports `read()`, `write()`, and `Stream` listening. Use `key('subKey')` to create nested keys.
 - **KeepKeySecure<T>**: Automatically handles encryption cycles.
 - **KeepBuilder**: Reactive widget for automatic UI updates.
+
+## Performance
+
+Benchmarked with 1000 iterations per operation. See [`test/stress_test.dart`](test/stress_test.dart) for details.
+
+| Operation | ops/sec |
+|-----------|---------|
+| Internal Write | ~28K |
+| Internal Read | ~110K |
+| Internal ReadSync | ~1M |
+| External Write | ~2.4K |
+| External Read | ~125K |
+| Internal Secure Write | ~6K |
+| Internal Secure Read | ~150K |
+
+> Read operations benefit from in-memory caching. Write operations include disk I/O.
+
+---
 
 ## Roadmap
 
