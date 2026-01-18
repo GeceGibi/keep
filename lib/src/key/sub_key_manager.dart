@@ -62,14 +62,25 @@ class SubKeyManager<T> extends Iterable<KeepKey<T>> {
   }
 
   Future<void> _performSave() async {
-    // Atomic write: Write to temp file -> Rename
-    final tempFile = File(
-      '${_file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
-    );
+    try {
+      // Atomic write: Write to temp file -> Rename
+      final tempFile = File(
+        '${_file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
+      );
 
-    // Use KeepCodec to encode (Shift bytes)
-    await tempFile.writeAsBytes(KeepCodec.encodePayload(_keysMemory, 0));
-    await tempFile.rename(_file.path);
+      // Use KeepCodec to encode (Shift bytes)
+      await tempFile.writeAsBytes(KeepCodec.encodePayload(_keysMemory, 0));
+      await tempFile.rename(_file.path);
+    } catch (error, stackTrace) {
+      final exception = KeepException<T>(
+        'Failed to save sub-key file',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      _parent._keep.onError?.call(exception);
+      throw exception;
+    }
   }
 
   /// Merges memory keys with disk keys and saves the result atomically if changed.
@@ -101,8 +112,19 @@ class SubKeyManager<T> extends Iterable<KeepKey<T>> {
   Future<void> clear() async {
     _keysMemory.clear();
 
-    if (_file.existsSync()) {
-      await _file.delete();
+    try {
+      if (_file.existsSync()) {
+        await _file.delete();
+      }
+    } catch (error, stackTrace) {
+      final exception = KeepException<T>(
+        'Failed to clear sub-key file',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      _parent._keep.onError?.call(exception);
+      throw exception;
     }
   }
 

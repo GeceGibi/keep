@@ -15,10 +15,10 @@ class KeepInternalStorage extends KeepStorage {
   /// Initializes the internal storage by loading the 'main.keep' file.
   @override
   Future<void> init(Keep keep) async {
-    try {
-      _keep = keep;
-      _rootFile = File('${keep.root.path}/main.keep');
+    _keep = keep;
+    _rootFile = File('${keep.root.path}/main.keep');
 
+    try {
       if (!_rootFile.existsSync()) {
         await _rootFile.create(recursive: true);
         await _rootFile.writeAsBytes(Uint8List(0)); // Empty binary

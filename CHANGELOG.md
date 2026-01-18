@@ -1,3 +1,8 @@
+## [0.2.6]
+### Fixed
+- Added missing try-catch blocks to `SubKeyManager` I/O operations.
+- Disabled `avoid_catches_without_on_clauses` lint rule for broader exception handling.
+
 ## [0.2.5]
 ### Added
 - Added memory cache for `KeepKeyPlain` and `KeepKeySecure` read operations.
