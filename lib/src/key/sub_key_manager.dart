@@ -143,8 +143,9 @@ class SubKeyManager<T> extends ChangeNotifier {
   }
 
   /// Returns `true` if sub-keys exist in memory or on disk.
-  bool get exists {
-    return _keys.isNotEmpty || _file.existsSync();
+  Future<bool> get exists async {
+    await _ensureInitialized();
+    return _keys.isNotEmpty;
   }
 
   /// Returns all registered sub-keys as [KeepKey] instances.

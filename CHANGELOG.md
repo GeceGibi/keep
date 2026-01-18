@@ -1,3 +1,7 @@
+## [0.2.14]
+### Changed
+- `SubKeyManager.exists` is now async and ensures initialization before checking.
+
 ## [0.2.13]
 ### Added
 - Added `SubKeyEvent` enum (`added`, `removed`, `cleared`) for tracking sub-key changes.
