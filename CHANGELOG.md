@@ -1,3 +1,11 @@
+## [0.2.9]
+### Fixed
+- `KeepType.fromByte` now returns `tNull` instead of `null` for unknown bytes, preventing encoding crashes.
+
+### Changed
+- `KeepKey` no longer extends `Stream`. Use `stream` getter instead.
+- Added `exists` getter to `SubKeyManager`.
+
 ## [0.2.8]
 ### Fixed
 - Added try-catch blocks to `KeepCodec.encodeAll`, `decodeAll`, and `encodePayload` methods.

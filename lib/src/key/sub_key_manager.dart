@@ -128,6 +128,11 @@ class SubKeyManager<T> extends Iterable<KeepKey<T>> {
     }
   }
 
+  /// Returns `true` if sub-keys exist in memory or on disk.
+  bool get exists {
+    return _keysMemory.isNotEmpty || _file.existsSync();
+  }
+
   /// Removes a specific sub-key from the registry.
   Future<void> remove(KeepKey<T> key) async {
     _keysMemory.remove(key.name);

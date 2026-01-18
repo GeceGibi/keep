@@ -65,7 +65,7 @@ void main() {
     final u2 = storage.users('u2');
     final u3 = storage.users('u3');
 
-    u1.listen((_) => print('u1: changed'));
+    u1.stream.listen((_) => print('u1: changed'));
 
     await u1.write('u1-val');
     await u2.write('u2-val');

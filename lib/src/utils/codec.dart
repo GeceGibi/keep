@@ -194,10 +194,12 @@ class KeepCodec {
   /// Used for obfuscating filenames and internal map keys.
   static String generateHash(String key) {
     final bytes = utf8.encode(key);
+
     var hash = 5381;
     for (final byte in bytes) {
       hash = ((hash << 5) + hash) + byte;
     }
+
     return hash.toUnsigned(64).toRadixString(36);
   }
 

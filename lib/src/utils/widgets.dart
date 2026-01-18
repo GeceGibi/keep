@@ -21,7 +21,7 @@ class KeepBuilder<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: keepKey,
+      stream: keepKey.stream,
       builder: (context, snapshot) {
         return FutureBuilder(
           future: keepKey.read(),

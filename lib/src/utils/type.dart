@@ -32,12 +32,13 @@ enum KeepType {
   /// The byte value used in binary encoding.
   final int byte;
 
-  /// Returns the [KeepType] for the given [byte], or null if not found.
-  static KeepType? fromByte(int byte) {
+  /// Returns the [KeepType] for the given [byte], or [tNull] if not found.
+  static KeepType fromByte(int byte) {
     for (final type in values) {
       if (type.byte == byte) return type;
     }
-    return null;
+
+    return tNull;
   }
 
   /// Parses the raw [value] to the expected type.

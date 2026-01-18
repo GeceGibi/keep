@@ -19,7 +19,7 @@ part 'sub_key_manager.dart';
 ///
 /// Implementations like [KeepKeyPlain] and [KeepKeySecure] define how the
 /// data is handled (e.g., plain JSON or encrypted).
-abstract class KeepKey<T> extends Stream<KeepKey<T>> {
+abstract class KeepKey<T> {
   /// [name] is the unique identifier for this key.
   /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
   /// [useExternal] indicates if the value should be stored in its own file.
@@ -243,22 +243,11 @@ abstract class KeepKey<T> extends Stream<KeepKey<T>> {
     }
   }
 
-  @override
-  StreamSubscription<KeepKey<T>> listen(
-    void Function(KeepKey<T> event)? onData, {
-    Function? onError,
-    void Function()? onDone,
-    bool? cancelOnError,
-  }) {
+  /// A stream that emits this key whenever its value changes.
+  Stream<KeepKey<T>> get stream {
     return _keep.onChange
-        .where((key) => key.name == name)
-        .cast<KeepKey<T>>()
-        .listen(
-          onData,
-          onError: onError,
-          onDone: onDone,
-          cancelOnError: cancelOnError,
-        );
+        .where((key) => key.storeName == storeName)
+        .cast<KeepKey<T>>();
   }
 
   @override
