@@ -1,3 +1,7 @@
+## [0.2.8]
+### Fixed
+- Added try-catch blocks to `KeepCodec.encodeAll`, `decodeAll`, and `encodePayload` methods.
+
 ## [0.2.7]
 ### Fixed
 - Internal storage now deletes corrupted files on decode failure instead of deadlocking.

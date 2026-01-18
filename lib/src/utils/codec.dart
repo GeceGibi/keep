@@ -26,105 +26,129 @@ class KeepCodec {
 
   /// Encodes all entries into a single binary block (for Internal Storage).
   static Uint8List encodeAll(Map<String, KeepMemoryValue> entries) {
-    final buffer = BytesBuilder();
+    try {
+      final buffer = BytesBuilder();
 
-    entries.forEach((key, entry) {
-      final keyBytes = utf8.encode(key);
-      if (keyBytes.length > 255) return;
+      entries.forEach((key, entry) {
+        final keyBytes = utf8.encode(key);
+        if (keyBytes.length > 255) return;
 
-      final jsonString = jsonEncode(entry.value);
-      final valBytes = utf8.encode(jsonString);
+        final jsonString = jsonEncode(entry.value);
+        final valBytes = utf8.encode(jsonString);
 
-      // [KeyLen] [Key] [Flags] [Version] [Type] [ValLen] [Value]
-      buffer
-        ..addByte(keyBytes.length)
-        ..add(keyBytes)
-        ..addByte(entry.flags)
-        ..addByte(entry.version)
-        ..addByte(entry.type.byte);
+        // [KeyLen] [Key] [Flags] [Version] [Type] [ValLen] [Value]
+        buffer
+          ..addByte(keyBytes.length)
+          ..add(keyBytes)
+          ..addByte(entry.flags)
+          ..addByte(entry.version)
+          ..addByte(entry.type.byte);
 
-      final valLen = valBytes.length;
-      buffer
-        ..addByte((valLen >> 24) & 0xFF)
-        ..addByte((valLen >> 16) & 0xFF)
-        ..addByte((valLen >> 8) & 0xFF)
-        ..addByte(valLen & 0xFF)
-        // Add value
-        ..add(valBytes);
-    });
+        final valLen = valBytes.length;
+        buffer
+          ..addByte((valLen >> 24) & 0xFF)
+          ..addByte((valLen >> 16) & 0xFF)
+          ..addByte((valLen >> 8) & 0xFF)
+          ..addByte(valLen & 0xFF)
+          // Add value
+          ..add(valBytes);
+      });
 
-    return shiftBytes(buffer.toBytes());
+      return shiftBytes(buffer.toBytes());
+    } catch (error, stackTrace) {
+      throw KeepException<dynamic>(
+        'Failed to encode batch of entries',
+        stackTrace: stackTrace,
+        error: error,
+      );
+    }
   }
 
   /// Decodes a binary block into a map of entries (for Internal Storage).
   static Map<String, KeepMemoryValue> decodeAll(Uint8List bytes) {
     if (bytes.isEmpty) return {};
 
-    final data = unShiftBytes(Uint8List.fromList(bytes));
-    final map = <String, KeepMemoryValue>{};
-    var offset = 0;
+    try {
+      final data = unShiftBytes(Uint8List.fromList(bytes));
+      final map = <String, KeepMemoryValue>{};
+      var offset = 0;
 
-    while (offset < data.length) {
-      if (offset + 1 > data.length) break;
+      while (offset < data.length) {
+        if (offset + 1 > data.length) break;
 
-      // 1. Read Key
-      final keyLen = data[offset++];
-      if (offset + keyLen > data.length) break;
-      final key = utf8.decode(data.sublist(offset, offset + keyLen));
-      offset += keyLen;
+        // 1. Read Key
+        final keyLen = data[offset++];
+        if (offset + keyLen > data.length) break;
+        final key = utf8.decode(data.sublist(offset, offset + keyLen));
+        offset += keyLen;
 
-      // 2. Read Flags, Version & Type
-      if (offset + 3 > data.length) break;
-      final flags = data[offset++];
-      final version = data[offset++];
-      final type = data[offset++];
+        // 2. Read Flags, Version & Type
+        if (offset + 3 > data.length) break;
+        final flags = data[offset++];
+        final version = data[offset++];
+        final type = data[offset++];
 
-      // 3. Read Value Length
-      if (offset + 4 > data.length) break;
-      final valLen =
-          ((data[offset] << 24) |
-                  (data[offset + 1] << 16) |
-                  (data[offset + 2] << 8) |
-                  (data[offset + 3]))
-              .toUnsigned(32);
-      offset += 4;
+        // 3. Read Value Length
+        if (offset + 4 > data.length) break;
+        final valLen =
+            ((data[offset] << 24) |
+                    (data[offset + 1] << 16) |
+                    (data[offset + 2] << 8) |
+                    (data[offset + 3]))
+                .toUnsigned(32);
+        offset += 4;
 
-      if (offset + valLen > data.length) break;
+        if (offset + valLen > data.length) break;
 
-      // 4. Read Value
-      final jsonString = utf8.decode(data.sublist(offset, offset + valLen));
-      final value = jsonDecode(jsonString);
-      offset += valLen;
+        // 4. Read Value
+        final jsonString = utf8.decode(data.sublist(offset, offset + valLen));
+        final value = jsonDecode(jsonString);
+        offset += valLen;
 
-      map[key] = KeepMigration.migrate(
-        KeepMemoryValue(
-          value,
-          flags,
-          version: version,
-          type: KeepType.fromByte(type),
-        ),
+        map[key] = KeepMigration.migrate(
+          KeepMemoryValue(
+            value,
+            flags,
+            version: version,
+            type: KeepType.fromByte(type),
+          ),
+        );
+      }
+
+      return map;
+    } catch (error, stackTrace) {
+      throw KeepException<dynamic>(
+        'Failed to decode batch of entries',
+        stackTrace: stackTrace,
+        error: error,
       );
     }
-
-    return map;
   }
 
   /// Encodes a single payload (for External Storage).
   static Uint8List encodePayload(dynamic value, int flags) {
-    final buffer = BytesBuilder();
-    final jsonString = jsonEncode(value);
-    final valBytes = utf8.encode(jsonString);
+    try {
+      final buffer = BytesBuilder();
+      final jsonString = jsonEncode(value);
+      final valBytes = utf8.encode(jsonString);
 
-    // [Flags] [Version] [Type] [JSON]
-    final type = inferType(value);
+      // [Flags] [Version] [Type] [JSON]
+      final type = inferType(value);
 
-    buffer
-      ..addByte(flags)
-      ..addByte(Keep.version)
-      ..addByte(type.byte)
-      ..add(valBytes);
+      buffer
+        ..addByte(flags)
+        ..addByte(Keep.version)
+        ..addByte(type.byte)
+        ..add(valBytes);
 
-    return shiftBytes(buffer.toBytes());
+      return shiftBytes(buffer.toBytes());
+    } catch (error, stackTrace) {
+      throw KeepException<dynamic>(
+        'Failed to encode payload',
+        stackTrace: stackTrace,
+        error: error,
+      );
+    }
   }
 
   /// Decodes a binary payload into a [KeepMemoryValue] (for External Storage).
