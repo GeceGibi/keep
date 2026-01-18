@@ -1,3 +1,10 @@
+## [0.2.13]
+### Added
+- Added `SubKeyEvent` enum (`added`, `removed`, `cleared`) for tracking sub-key changes.
+- Added `stream` getter to `SubKeyManager` for reactive sub-key monitoring.
+- `SubKeyManager` now extends `ChangeNotifier` for Flutter widget integration.
+- Added `dispose()` method to `SubKeyManager` for proper resource cleanup.
+
 ## [0.2.12]
 ### Changed
 - Renamed `SubKeyManager.keys` getter to `toList()` method for better API clarity.

@@ -1,12 +1,30 @@
 part of 'key.dart';
 
+/// Event types for [SubKeyManager] changes.
+enum SubKeyEvent {
+  /// A sub-key was registered.
+  added,
+
+  /// A sub-key was removed.
+  removed,
+
+  /// All sub-keys were cleared.
+  cleared,
+}
+
 /// Manages registration and persistence of sub-keys.
 ///
 /// Sub-keys are stored in a separate file (hashed) associated with the parent key.
-class SubKeyManager<T> {
+class SubKeyManager<T> extends ChangeNotifier {
   /// Creates a [SubKeyManager] for the given [parent] key.
   SubKeyManager(this._parent);
   final KeepKey<T> _parent;
+
+  /// Stream controller for sub-key events.
+  final _controller = StreamController<SubKeyEvent>.broadcast();
+
+  /// A stream of sub-key events (added, removed, cleared).
+  Stream<SubKeyEvent> get stream => _controller.stream;
 
   /// In-memory cache of registered sub-key names.
   final _keys = <String>[];
@@ -47,6 +65,10 @@ class SubKeyManager<T> {
     }
 
     _keys.add(key.name);
+
+    _controller.add(.added);
+    notifyListeners();
+
     _performSave();
   }
 
@@ -101,6 +123,8 @@ class SubKeyManager<T> {
   /// Clears all registered sub-keys from memory and disk.
   Future<void> clear() async {
     _keys.clear();
+    _controller.add(.cleared);
+    notifyListeners();
 
     try {
       if (_file.existsSync()) {
@@ -135,6 +159,16 @@ class SubKeyManager<T> {
   Future<void> remove(KeepKey<T> key) async {
     await _ensureInitialized();
     _keys.remove(key.name);
+    _controller.add(.removed);
+    notifyListeners();
+
     _performSave();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.close().ignore();
+    super.dispose();
   }
 }
