@@ -1,3 +1,11 @@
+## [0.2.16]
+### Fixed
+- Fixed a deadlock in `KeepKey.remove` when notifying the parent `SubKeyManager`.
+- Fixed potential race condition in `SubKeyManager.clear()` by canceling active debounce timers.
+
+### Changed
+- Internalized sub-key registration methods (`_register`, `_unregister`) to simplify the public API.
+
 ## [0.2.15]
 ### Fixed
 - `SubKeyManager.clear()` now properly removes sub-key contents before clearing the registry.

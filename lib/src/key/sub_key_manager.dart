@@ -57,7 +57,7 @@ class SubKeyManager<T> extends ChangeNotifier {
   /// Registers a sub-key name synchronously.
   ///
   /// Adds to memory immediately and schedules a background sync to merge with disk.
-  Future<void> register(KeepKey<T> key) async {
+  Future<void> _register(KeepKey<T> key) async {
     await _ensureInitialized();
 
     if (_keys.contains(key.name)) {
@@ -68,6 +68,15 @@ class SubKeyManager<T> extends ChangeNotifier {
     _controller.add(.added);
     notifyListeners();
 
+    _performSave();
+  }
+
+  /// Removes a specific sub-key from the registry.
+  Future<void> _unregister(KeepKey<T> key) async {
+    await _ensureInitialized();
+    _keys.remove(key.name);
+    _controller.add(.removed);
+    notifyListeners();
     _performSave();
   }
 
@@ -122,6 +131,7 @@ class SubKeyManager<T> extends ChangeNotifier {
   /// Clears all registered sub-keys from memory and disk.
   Future<void> clear() async {
     await _ensureInitialized();
+    _debounceTimer?.cancel();
 
     try {
       // Remove sub-key contents first
@@ -158,16 +168,6 @@ class SubKeyManager<T> extends ChangeNotifier {
   Future<List<KeepKey<T>>> toList() async {
     await _ensureInitialized();
     return _keys.map(_parent.call).toList();
-  }
-
-  /// Removes a specific sub-key from the registry.
-  Future<void> remove(KeepKey<T> key) async {
-    await _ensureInitialized();
-    await key.remove();
-    _keys.remove(key.name);
-    _controller.add(.removed);
-    notifyListeners();
-    _performSave();
   }
 
   @override

@@ -207,28 +207,8 @@ abstract class KeepKey<T> {
       }
 
       if (_parent != null) {
-        await _parent!.keys.remove(this);
+        await _parent!.keys._unregister(this);
       }
-    } on KeepException<dynamic> {
-      rethrow;
-    } catch (e, s) {
-      final exception = toException(
-        e.toString(),
-        error: e,
-        stackTrace: s,
-      );
-
-      _keep.onError?.call(exception);
-      throw exception;
-    }
-  }
-
-  /// Removes all sub-keys registered under this key.
-  Future<void> removeKeys() async {
-    await _keep.ensureInitialized;
-
-    try {
-      await keys.clear();
     } on KeepException<dynamic> {
       rethrow;
     } catch (e, s) {

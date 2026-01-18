@@ -39,7 +39,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
           ..bind(_keep)
           .._parent = this;
 
-    keys.register(key).ignore();
+    unawaited(keys._register(key));
     return key;
   }
 
