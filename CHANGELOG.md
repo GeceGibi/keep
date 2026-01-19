@@ -1,4 +1,4 @@
-## [0.3.1]
+## [0.3.0+1]
 ### Added
 - Added `KeepStorage.readHeader()` to allow reading metadata without loading full content.
 - `KeepCodec.parseHeader()` now returns `version` and `KeepType` enum.
