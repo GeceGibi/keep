@@ -41,8 +41,8 @@ abstract class KeepStorage {
   /// Returns a list of all storage keys (storeNames) in this storage.
   Future<List<String>> getKeys();
 
-  /// Removes multiple entries by their storage keys (storeNames).
-  Future<void> removeKeys(List<String> storeNames);
+  /// Removes an entry by its storage key (storeName).
+  Future<void> removeKey(String storeName);
 
   /// Scans the storage and removes all entries marked with the **Removable** flag.
   ///

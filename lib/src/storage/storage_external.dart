@@ -7,6 +7,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
   DefaultKeepExternalStorage();
   late Directory _root;
   late Keep _keep;
+
   final Map<String, Future<void>> _queue = {};
 
   /// Executes a file [action] by queuing it to prevent concurrent write/read conflicts
@@ -186,7 +187,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
     final names = await getKeys();
 
     for (final name in names) {
-      final file = File('${_keep.root.path}/external/$name');
+      final file = File('${_root.path}/$name');
 
       try {
         if (!file.existsSync()) continue;
@@ -241,7 +242,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
   Future<void> clear() async {
     final names = await getKeys();
     for (final name in names) {
-      final file = File('${_keep.root.path}/external/$name');
+      final file = File('${_root.path}/$name');
       try {
         if (await file.exists()) {
           await file.delete();
@@ -287,37 +288,33 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   /// Removes multiple files by their storage keys (file names).
   @override
-  Future<void> removeKeys(List<String> storeNames) async {
-    for (final storeName in storeNames) {
-      try {
-        final file = File('${_keep.root.path}/external/$storeName');
+  Future<void> removeKey(String storeName) async {
+    try {
+      final file = File('${_root.path}/$storeName');
 
-        if (file.existsSync()) {
-          await file.delete();
-        }
-      } catch (error, stackTrace) {
-        final exception = KeepException<dynamic>(
-          'Failed to remove file $storeName',
-          error: error,
-          stackTrace: stackTrace,
-        );
-
-        _keep.onError?.call(exception);
-        throw exception;
+      if (file.existsSync()) {
+        await file.delete();
       }
+    } catch (error, stackTrace) {
+      final exception = KeepException<dynamic>(
+        'Failed to remove file $storeName',
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      _keep.onError?.call(exception);
+      throw exception;
     }
   }
 
   /// Returns a list of all storage keys (file names) in external storage.
   @override
   Future<List<String>> getKeys() async {
-    final dir = Directory('${_keep.root.path}/external');
-
-    if (!dir.existsSync()) {
+    if (!_root.existsSync()) {
       return [];
     }
 
-    final list = await dir.list().where((e) => e is File).toList();
+    final list = await _root.list().where((e) => e is File).toList();
 
     // Return base names (filenames = storeNames)
     return list.map((e) => e.uri.pathSegments.last).toList();

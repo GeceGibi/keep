@@ -58,19 +58,19 @@ class SubKeyManager<T> extends ChangeNotifier {
 
       // 1. Clear Internal Storage
       final internalKeys = await _parent._keep.internalStorage.getKeys();
-      final toRemoveInternal = internalKeys
-          .where((k) => k.startsWith(prefix))
-          .toList();
-
-      await _parent._keep.internalStorage.removeKeys(toRemoveInternal);
+      await Future.wait(
+        internalKeys
+            .where((k) => k.startsWith(prefix))
+            .map(_parent._keep.internalStorage.removeKey),
+      );
 
       // 2. Clear External Storage
       final externalKeys = await _parent._keep.externalStorage.getKeys();
-      final toRemoveExternal = externalKeys
-          .where((k) => k.startsWith(prefix))
-          .toList();
-
-      await _parent._keep.externalStorage.removeKeys(toRemoveExternal);
+      await Future.wait(
+        externalKeys
+            .where((k) => k.startsWith(prefix))
+            .map(_parent._keep.externalStorage.removeKey),
+      );
 
       // 3. Clear in-memory registry
       _instantiatedKeys.clear();

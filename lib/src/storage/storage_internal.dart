@@ -113,12 +113,9 @@ class KeepInternalStorage extends KeepStorage {
 
   /// Removes multiple entries from memory by their storage keys.
   @override
-  Future<void> removeKeys(List<String> storeNames) async {
-    storeNames.forEach(memory.remove);
-
-    if (storeNames.isNotEmpty) {
-      await saveMemory();
-    }
+  Future<void> removeKey(String storeName) async {
+    memory.remove(storeName);
+    unawaited(saveMemory());
   }
 
   /// Clears all entries from the internal storage.
