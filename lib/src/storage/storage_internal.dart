@@ -34,7 +34,7 @@ class KeepInternalStorage extends KeepStorage {
       }
 
       // Isolate logic for decoding
-      memory = await compute(KeepCodec.decodeAll, bytes);
+      memory = await compute(KeepCodec.v1.decodeAll, bytes);
     } catch (error, stackTrace) {
       final exception = KeepException<dynamic>(
         'Failed to initialize internal storage',
@@ -59,7 +59,7 @@ class KeepInternalStorage extends KeepStorage {
     _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
       try {
         final currentMemory = Map<String, KeepMemoryValue>.from(memory);
-        final bytes = await compute(KeepCodec.encodeAll, currentMemory);
+        final bytes = await compute(KeepCodec.v1.encodeAll, currentMemory);
 
         final tmp = File('${_rootFile.path}.tmp');
         await tmp.writeAsBytes(bytes, flush: true);

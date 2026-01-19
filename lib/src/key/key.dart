@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:keep/src/codec/codec.dart';
 import 'package:keep/src/keep.dart';
 import 'package:keep/src/storage/storage.dart';
 import 'package:keep/src/utils/utils.dart';
@@ -59,7 +60,7 @@ abstract class KeepKey<T> {
   ///
   /// This is the hashed version of [name].
   String get storeName {
-    final hashedName = KeepCodec.generateHash(name);
+    final hashedName = KeepCodec.hash(name);
 
     if (_parent == null) {
       return hashedName;

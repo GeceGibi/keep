@@ -32,6 +32,20 @@ enum KeepType {
   /// The byte value used in binary encoding.
   final int byte;
 
+  /// Infers the [KeepType] from a dynamic value.
+  static KeepType inferType(Object? value) {
+    return switch (value) {
+      int() => .tInt,
+      double() => .tDouble,
+      bool() => .tBool,
+      String() => .tString,
+      Uint8List() => .tBytes,
+      List() => .tList,
+      Map() => .tMap,
+      _ => .tNull,
+    };
+  }
+
   /// Returns the [KeepType] for the given [byte], or [tNull] if not found.
   static KeepType fromByte(int byte) {
     for (final type in values) {

@@ -72,7 +72,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
           return null;
         }
 
-        final entry = KeepCodec.decode(bytes);
+        final entry = KeepCodec.v1.decode(bytes);
 
         // If decode failed (legacy format or corrupted) but file had content, delete it
         if (entry == null) {
@@ -109,7 +109,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
       return null;
     }
 
-    final entry = KeepCodec.decode(bytes);
+    final entry = KeepCodec.v1.decode(bytes);
 
     // If decode failed (legacy format or corrupted) but file had content, delete it
     if (entry == null) {
@@ -123,6 +123,11 @@ class DefaultKeepExternalStorage extends KeepStorage {
   @override
   Future<void> write(KeepKey<dynamic> key, Object? value) async {
     try {
+      if (value == null) {
+        await getFile(key).delete();
+        return;
+      }
+
       await _withQueue(key.storeName, () async {
         final file = getFile(key);
         final tmp = File('${file.path}.tmp');
@@ -131,12 +136,16 @@ class DefaultKeepExternalStorage extends KeepStorage {
         if (key.removable) flags |= KeepCodec.flagRemovable;
         if (key is KeepKeySecure) flags |= KeepCodec.flagSecure;
 
-        final bytes = KeepCodec.encode(
+        final bytes = KeepCodec.v1.encode(
           storeName: key.storeName,
           keyName: key.name,
           flags: flags,
           value: value,
         );
+
+        if (bytes == null) {
+          return;
+        }
 
         await tmp.writeAsBytes(bytes, flush: true);
         await tmp.rename(file.path);
@@ -211,7 +220,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
               final unShifted = KeepCodec.unShiftBytes(buffer);
 
               // Parse header using helper
-              final header = KeepCodec.parseHeader(unShifted);
+              final header = KeepCodec.v1.header(unShifted);
               if (header != null) {
                 flagsByte = header.flags;
               }
@@ -266,7 +275,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
       }
 
       final unShifted = KeepCodec.unShiftBytes(buffer);
-      final header = KeepCodec.parseHeader(unShifted);
+      final header = KeepCodec.v1.header(unShifted);
 
       if (header == null) {
         return null;

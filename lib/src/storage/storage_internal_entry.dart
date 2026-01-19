@@ -19,7 +19,7 @@ class KeepMemoryValue {
     required this.storeName,
     this.version = Keep.version,
     KeepType? type,
-  }) : type = type ?? KeepCodec.inferType(value);
+  }) : type = type ?? KeepType.inferType(value);
 
   /// The original key name.
   final String name;
