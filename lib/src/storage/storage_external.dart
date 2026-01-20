@@ -138,7 +138,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
         if (key.removable) flags |= KeepCodec.flagRemovable;
         if (key is KeepKeySecure) flags |= KeepCodec.flagSecure;
 
-        final bytes = KeepCodec.codecs.last.encode(
+        final bytes = KeepCodec.current.encode(
           storeName: key.storeName,
           keyName: key.name,
           flags: flags,
@@ -247,9 +247,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
   }
 
   @override
-  Future<({String name, int flags, int version, KeepType type})?> readHeader(
-    String storeName,
-  ) async {
+  Future<KeepHeader?> header(String storeName) async {
     final file = File('${_root.path}/$storeName');
     if (!file.existsSync()) {
       return null;
@@ -280,12 +278,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
         return null;
       }
 
-      return (
-        name: header.name,
-        flags: header.flags,
-        version: header.version,
-        type: header.type,
-      );
+      return header;
     } catch (_) {
       return null;
     } finally {

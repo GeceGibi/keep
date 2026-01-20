@@ -128,9 +128,7 @@ class SubKeyManager<T> extends ChangeNotifier {
       }
 
       try {
-        final header = await _parent._keep.externalStorage.readHeader(
-          storeName,
-        );
+        final header = await _parent._keep.externalStorage.header(storeName);
 
         if (header != null) {
           foundNames.add(header.name);

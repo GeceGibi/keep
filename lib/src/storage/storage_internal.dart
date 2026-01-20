@@ -159,19 +159,18 @@ class KeepInternalStorage extends KeepStorage {
   }
 
   @override
-  Future<({String name, int flags, int version, KeepType type})?> readHeader(
-    String storeName,
-  ) async {
+  Future<KeepHeader?> header(String storeName) async {
     final entry = memory[storeName];
     if (entry == null) {
       return null;
     }
 
-    return (
+    return KeepHeader(
       name: entry.name,
       flags: entry.flags,
       version: entry.version,
       type: entry.type,
+      storeName: entry.storeName,
     );
   }
 
@@ -186,7 +185,7 @@ class KeepInternalStorage extends KeepStorage {
       final buffer = BytesBuilder();
 
       entries.forEach((storeName, entry) {
-        final payloadBytes = KeepCodec.codecs.last.encode(
+        final payloadBytes = KeepCodec.current.encode(
           storeName: storeName,
           keyName: entry.name,
           flags: entry.flags,

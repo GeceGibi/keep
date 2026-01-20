@@ -20,9 +20,6 @@ abstract class KeepCodec {
 
   /// Creates a codec wrapper that auto-selects version from bytes.
   static KeepCodecOf of(Uint8List bytes) => KeepCodecOf(bytes);
-  static final codecs = <KeepCodec>[
-    KeepCodecV1._(),
-  ];
 
   /// Flag bitmask for **Removable** keys (Bit 0).
   @internal
@@ -82,25 +79,30 @@ abstract class KeepCodec {
   }
 
   /// Version 1 codec instance (default).
-  static final v1 = KeepCodecV1._();
+  static final _v1 = KeepCodecV1._();
+
+  /// Gets the latest available codec.
+  static KeepCodec get current => _v1;
 
   /// Selects the appropriate codec based on version number.
   static KeepCodec forVersion(int version) {
     return switch (version) {
-      1 => KeepCodecV1._(),
-      _ => v1, // Fallback to V1
+      1 => _v1,
+      _ => _v1, // Fallback
     };
   }
 
   /// Reads version from raw bytes and returns appropriate codec.
   static KeepCodec fromBytes(Uint8List bytes) {
     if (bytes.isEmpty) {
-      return v1;
+      return _v1;
     }
 
     // UnShift to get actual data
     final data = unShiftBytes(Uint8List.fromList(bytes));
-    if (data.isEmpty) return v1;
+    if (data.isEmpty) {
+      return _v1;
+    }
 
     // First byte is version
     final version = data[0];

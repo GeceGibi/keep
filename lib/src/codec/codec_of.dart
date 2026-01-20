@@ -15,14 +15,14 @@ class KeepCodecOf {
   KeepCodecOf(this.bytes) {
     // UnShift and read version
     if (bytes.isEmpty) {
-      codec = KeepCodec.v1;
+      codec = KeepCodec._v1;
       return;
     }
 
     final data = KeepCodec.unShiftBytes(Uint8List.fromList(bytes));
 
     if (data.isEmpty) {
-      codec = KeepCodec.v1;
+      codec = KeepCodec._v1;
       return;
     }
 
