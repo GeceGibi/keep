@@ -6,13 +6,13 @@ part of 'storage.dart';
 /// information within the Keep system. It encapsulates both the raw data payload
 /// and bitwise flags that define the data's behavior (e.g., persistence strategies).
 ///
-/// Instances of [KeepMemoryValue] are immutable and are used during:
+/// Instances of [KeepInternalValue] are immutable and are used during:
 /// - In-memory storage (Internal Keep)
 /// - Binary serialization (External Keep)
 @immutable
-class KeepMemoryValue {
+class KeepInternalEntry {
   /// Creates a new keep entry with the given [value], [flags], optional [version] and [type].
-  KeepMemoryValue({
+  KeepInternalEntry({
     required this.value,
     required this.flags,
     required this.name,
@@ -47,12 +47,12 @@ class KeepMemoryValue {
 
   @override
   String toString() =>
-      'KeepMemoryValue(name: $name, value: $value, flags: $flags, type: $type, isRemovable: $isRemovable, isSecure: $isSecure)';
+      'KeepInternalValue(name: $name, value: $value, flags: $flags, type: $type, isRemovable: $isRemovable, isSecure: $isSecure)';
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is KeepMemoryValue &&
+    return other is KeepInternalEntry &&
         other.name == name &&
         other.value == value &&
         other.flags == flags &&

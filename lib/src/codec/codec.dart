@@ -43,7 +43,7 @@ abstract class KeepCodec {
   });
 
   /// Decodes [bytes] from this codec's version format.
-  KeepMemoryValue? decode(Uint8List bytes);
+  KeepInternalEntry? decode(Uint8List bytes);
 
   /// Parses header metadata from payload bytes without full decoding.
   ///

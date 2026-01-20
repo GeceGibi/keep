@@ -20,7 +20,7 @@ class KeepCodecV1 extends KeepCodec {
   int get version => 1;
 
   @override
-  KeepMemoryValue? decode(Uint8List bytes) {
+  KeepInternalEntry? decode(Uint8List bytes) {
     if (bytes.isEmpty) return null;
 
     try {
@@ -60,15 +60,13 @@ class KeepCodecV1 extends KeepCodec {
         return null;
       }
 
-      return KeepMigration.migrate(
-        KeepMemoryValue(
-          value: value,
-          flags: flags,
-          name: originalKey,
-          storeName: storeName,
-          version: version,
-          type: KeepType.fromByte(type),
-        ),
+      return KeepInternalEntry(
+        value: value,
+        flags: flags,
+        name: originalKey,
+        storeName: storeName,
+        version: version,
+        type: KeepType.fromByte(type),
       );
     } catch (error) {
       // Ignore legacy format or corrupted data

@@ -37,7 +37,7 @@ class KeepCodecOf {
   late final KeepCodec codec;
 
   /// Decodes the payload using the selected codec.
-  KeepMemoryValue? decode() => codec.decode(bytes);
+  KeepInternalEntry? decode() => codec.decode(bytes);
 
   /// Parses header metadata without full decoding.
   KeepHeader? header() => codec.header(bytes);

@@ -10,19 +10,19 @@ class TestKeep extends Keep {
         ),
       );
 
-  final KeepKey<String> username = Keep.string('username');
-  final KeepKey<String> secureToken = Keep.stringSecure('token');
-  final KeepKey<String> extData = Keep.string(
+  final KeepKey<String> username = Keep.kString('username');
+  final KeepKey<String> secureToken = Keep.kStringSecure('token');
+  final KeepKey<String> extData = Keep.kString(
     'ext_data',
     useExternal: true,
   );
 
-  final KeepKey<String> extSecure = Keep.stringSecure(
+  final KeepKey<String> extSecure = Keep.kStringSecure(
     'ext_secure',
     useExternal: true,
   );
 
-  final KeepKey<String> users = Keep.string('users');
+  final KeepKey<String> users = Keep.kString('users');
 }
 
 void main() {
@@ -128,7 +128,7 @@ void main() {
     print('\n--- Testing Dynamic Keys ---');
     final cities = storage.users; // Reusing for test
 
-    for (var cityId in [1, 2, 3]) {
+    for (final cityId in [1, 2, 3]) {
       final counties = cities(cityId.toString());
       await counties.write('City $cityId data');
     }

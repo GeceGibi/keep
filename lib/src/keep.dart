@@ -106,7 +106,7 @@ class Keep {
   /// Creates a standard [int] key.
   ///
   /// This key will store plain integer values in the internal storage.
-  static KeepKeyPlain<int> integer(
+  static KeepKeyPlain<int> kInt(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -129,7 +129,7 @@ class Keep {
   /// Creates an encrypted [int] key.
   ///
   /// The value is automatically encrypted before being stored.
-  static KeepKeySecure<int> integerSecure(
+  static KeepKeySecure<int> kIntSecure(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -150,7 +150,7 @@ class Keep {
   /// Creates a standard [String] key.
   ///
   /// This key will store plain string values in the internal storage.
-  static KeepKeyPlain<String> string(
+  static KeepKeyPlain<String> kString(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -173,7 +173,7 @@ class Keep {
   /// Creates an encrypted [String] key.
   ///
   /// The value is automatically encrypted before being stored.
-  static KeepKeySecure<String> stringSecure(
+  static KeepKeySecure<String> kStringSecure(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -192,7 +192,7 @@ class Keep {
   }
 
   /// Creates a standard [bool] key.
-  static KeepKeyPlain<bool> boolean(
+  static KeepKeyPlain<bool> kBool(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -215,7 +215,7 @@ class Keep {
   /// Creates an encrypted [bool] key.
   ///
   /// The value is automatically encrypted before being stored.
-  static KeepKeySecure<bool> booleanSecure(
+  static KeepKeySecure<bool> kBoolSecure(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -234,7 +234,7 @@ class Keep {
   }
 
   /// Creates a standard [double] key.
-  static KeepKeyPlain<double> decimal(
+  static KeepKeyPlain<double> kDouble(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -257,7 +257,7 @@ class Keep {
   /// Creates an encrypted [double] key.
   ///
   /// The value is automatically encrypted before being stored.
-  static KeepKeySecure<double> decimalSecure(
+  static KeepKeySecure<double> kDoubleSecure(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -277,7 +277,7 @@ class Keep {
   }
 
   /// Creates a standard [Map] key.
-  static KeepKeyPlain<Map<String, dynamic>> map(
+  static KeepKeyPlain<Map<String, dynamic>> kMap(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -300,7 +300,7 @@ class Keep {
   }
 
   /// Creates an encrypted [Map] key.
-  static KeepKeySecure<Map<String, dynamic>> mapSecure(
+  static KeepKeySecure<Map<String, dynamic>> kMapSecure(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -319,7 +319,7 @@ class Keep {
   }
 
   /// Creates a standard [List] key.
-  static KeepKeyPlain<List<T>> list<T>(
+  static KeepKeyPlain<List<T>> kList<T>(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -341,7 +341,7 @@ class Keep {
   }
 
   /// Creates an encrypted [List] key.
-  static KeepKeySecure<List<T>> listSecure<T>(
+  static KeepKeySecure<List<T>> kListSecure<T>(
     String name, {
     bool removable = false,
     bool useExternal = false,
@@ -359,8 +359,8 @@ class Keep {
     return key;
   }
 
-  /// Creates a custom encrypted key with specialized serialization.
-  static KeepKeySecure<T> customSecure<T>({
+  /// Creates a custom plain key with specialized serialization.
+  static KeepKeyPlain<T> custom<T>({
     required String name,
     required T? Function(Object? value) fromStorage,
     required Object? Function(T value) toStorage,
@@ -368,7 +368,7 @@ class Keep {
     bool useExternal = false,
     KeepStorage? storage,
   }) {
-    final key = KeepKeySecure<T>(
+    final key = KeepKeyPlain<T>(
       name: name,
       removable: removable,
       useExternal: useExternal,
@@ -380,8 +380,8 @@ class Keep {
     return key;
   }
 
-  /// Creates a custom plain key with specialized serialization.
-  static KeepKeyPlain<T> custom<T>({
+  /// Creates a custom encrypted key with specialized serialization.
+  static KeepKeySecure<T> customSecure<T>({
     required String name,
     required T? Function(Object? value) fromStorage,
     required Object? Function(T value) toStorage,
@@ -389,7 +389,7 @@ class Keep {
     bool useExternal = false,
     KeepStorage? storage,
   }) {
-    final key = KeepKeyPlain<T>(
+    final key = KeepKeySecure<T>(
       name: name,
       removable: removable,
       useExternal: useExternal,

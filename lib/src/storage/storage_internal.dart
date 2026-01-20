@@ -8,7 +8,7 @@ class KeepInternalStorage extends KeepStorage {
   late final Keep _keep;
 
   /// In-memory cache of entries.
-  Map<String, KeepMemoryValue> memory = {};
+  Map<String, KeepInternalEntry> memory = {};
 
   Timer? _debounceTimer;
 
@@ -58,7 +58,7 @@ class KeepInternalStorage extends KeepStorage {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
       try {
-        final currentMemory = Map<String, KeepMemoryValue>.from(memory);
+        final currentMemory = Map<String, KeepInternalEntry>.from(memory);
         final bytes = await compute(_encodeAll, currentMemory);
 
         final tmp = File('${_rootFile.path}.tmp');
@@ -95,7 +95,7 @@ class KeepInternalStorage extends KeepStorage {
       flags |= KeepCodec.flagSecure;
     }
 
-    memory[key.storeName] = KeepMemoryValue(
+    memory[key.storeName] = KeepInternalEntry(
       value: value,
       flags: flags,
       name: key.name,
@@ -181,7 +181,7 @@ class KeepInternalStorage extends KeepStorage {
   }
 
   /// Encodes all entries into a single binary block for file storage.
-  static Uint8List _encodeAll(Map<String, KeepMemoryValue> entries) {
+  static Uint8List _encodeAll(Map<String, KeepInternalEntry> entries) {
     try {
       final buffer = BytesBuilder();
 
@@ -217,12 +217,12 @@ class KeepInternalStorage extends KeepStorage {
   }
 
   /// Decodes a binary block into a map of entries.
-  static Map<String, KeepMemoryValue> _decodeAll(Uint8List bytes) {
+  static Map<String, KeepInternalEntry> _decodeAll(Uint8List bytes) {
     if (bytes.isEmpty) return {};
 
     try {
       final data = KeepCodec.unShiftBytes(Uint8List.fromList(bytes));
-      final map = <String, KeepMemoryValue>{};
+      final map = <String, KeepInternalEntry>{};
       var offset = 0;
 
       while (offset < data.length) {

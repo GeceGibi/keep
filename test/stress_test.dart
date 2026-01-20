@@ -11,13 +11,13 @@ class StressKeep extends Keep {
         ),
       );
 
-  final KeepKey<String> stressKey = Keep.string('stress_key');
-  final KeepKey<String> stressExt = Keep.string(
+  final KeepKey<String> stressKey = Keep.kString('stress_key');
+  final KeepKey<String> stressExt = Keep.kString(
     'stress_ext',
     useExternal: true,
   );
-  final KeepKey<String> stressSecure = Keep.stringSecure('stress_secure');
-  final KeepKey<String> stressSecureExt = Keep.stringSecure(
+  final KeepKey<String> stressSecure = Keep.kStringSecure('stress_secure');
+  final KeepKey<String> stressSecureExt = Keep.kStringSecure(
     'stress_secure_ext',
     useExternal: true,
   );
