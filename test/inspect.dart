@@ -5,6 +5,7 @@ import 'package:keep/keep.dart';
 class TestKeep extends Keep {
   TestKeep()
     : super(
+        'TestKeep',
         encrypter: SimpleKeepEncrypter(
           secureKey: 'secure_test_key_32_chars_long!!',
         ),

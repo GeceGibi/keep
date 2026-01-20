@@ -33,20 +33,29 @@ dependencies:
 import 'package:keep/keep.dart';
 
 class AppStorage extends Keep {
-  AppStorage();
+  AppStorage() : super('app_v1');
 
-  final counter = Keep.integer('counter');
-  final username = Keep.string('username');
-  final settings = Keep.map('settings');
+  final counter = Keep.kInt('counter');
+  final username = Keep.kString('username');
+  final settings = Keep.kMap('settings');
   
   // Encrypted storage
-  final token = Keep.stringSecure('auth_token');
+  final token = Keep.kStringSecure('auth_token');
 }
 
 final storage = AppStorage();
 ```
 
-### 2. Initialize
+### Keep ID & Multi-Instance
+Pass a unique `id` to the constructor. This ensures stable storage paths even after code obfuscation and allows running multiple isolated instances:
+
+```dart
+final user1 = AppStorage('user_1');
+final user2 = AppStorage('user_2'); // Completely isolated
+```
+---
+
+## Initialization
 
 ```dart
 void main() async {
@@ -102,22 +111,27 @@ storage.counter.stream.listen((key) async {
 
 ```dart
 // Primitives
-Keep.integer('key')
-Keep.string('key')
-Keep.boolean('key')
-Keep.decimal('key')
+Keep.kInt('key')
+Keep.kString('key')
+Keep.kBool('key')
+Keep.kDouble('key')
 
 // Collections
-Keep.list<T>('key')
-Keep.map('key')
+Keep.kList<T>('key')
+Keep.kMap('key')
 
 // Encrypted variants (add 'Secure' suffix)
-Keep.integerSecure('key')
-Keep.stringSecure('key')
+Keep.kIntSecure('key')
+Keep.kStringSecure('key')
 // ... etc
 
 // Custom types
 Keep.custom<T>(
+  name: 'key',
+  fromStorage: (value) => /* deserialize */,
+  toStorage: (value) => /* serialize */,
+)
+Keep.customSecure<T>(
   name: 'key',
   fromStorage: (value) => /* deserialize */,
   toStorage: (value) => /* serialize */,
@@ -163,7 +177,7 @@ key.stream                    // Stream<KeepKey<T>>
 Create nested keys dynamically:
 
 ```dart
-final users = Keep.string('users');
+final users = Keep.kString('users');
 
 // Create sub-keys using call operator
 final alice = users('alice');
@@ -213,9 +227,9 @@ class AesEncrypter extends KeepEncrypter {
 
 // Usage
 class AppStorage extends Keep {
-  AppStorage() : super(encrypter: AesEncrypter());
+  AppStorage() : super('secure_vault', encrypter: AesEncrypter());
   
-  final pin = Keep.integerSecure('pin');
+  final pin = Keep.kIntSecure('pin');
 }
 ```
 
@@ -277,9 +291,9 @@ class DatabaseStorage extends KeepStorage {
 
 // Usage
 class AppStorage extends Keep {
-  AppStorage() : super(externalStorage: DatabaseStorage());
+  AppStorage() : super('db_vault', externalStorage: DatabaseStorage());
   
-  final logs = Keep.list('logs', useExternal: true);
+  final logs = Keep.kList('logs', useExternal: true);
 }
 ```
 
@@ -312,6 +326,7 @@ await currentUser.write(User('Alice', 30));
 ```dart
 class AppStorage extends Keep {
   AppStorage() : super(
+    'error_logger',
     onError: (e) {
       print('Storage error: ${e.message}');
       print('Key: ${e.key?.name}');
@@ -326,8 +341,8 @@ Use for large data to avoid memory overhead:
 
 ```dart
 // Store large data in separate files
-final bigData = Keep.map('large_dataset', useExternal: true);
-final logs = Keep.list('app_logs', useExternal: true);
+final bigData = Keep.kMap('large_dataset', useExternal: true);
+final logs = Keep.kList('app_logs', useExternal: true);
 ```
 
 ### Version-Based Migration
@@ -363,8 +378,8 @@ await storage.clear();
 ### Clear Removable Only
 
 ```dart
-final cache = Keep.string('cache', removable: true);
-final temp = Keep.map('temp', removable: true);
+final cache = Keep.kString('cache', removable: true);
+final temp = Keep.kMap('temp', removable: true);
 
 // Later
 await storage.clearRemovable(); // Only clears keys marked removable

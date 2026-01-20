@@ -6,6 +6,7 @@ import 'package:keep/keep.dart';
 class StressKeep extends Keep {
   StressKeep()
     : super(
+        'StressKeep',
         encrypter: SimpleKeepEncrypter(
           secureKey: 'stress_test_key_32_chars_long!!',
         ),

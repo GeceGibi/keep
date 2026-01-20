@@ -6,25 +6,26 @@ import 'package:keep/keep.dart';
 class AppStorage extends Keep {
   AppStorage()
       : super(
+          'app_v1',
           encrypter: SimpleKeepEncrypter(secureKey: 'my-32-char-key-here!!!!'),
           onError: (e) => print('❌ Error: $e'),
         );
 
   // Standard keys
-  final counter = Keep.integer('counter');
-  final username = Keep.string('username');
-  final isDarkMode = Keep.boolean('is_dark_mode');
-  final rating = Keep.decimal('rating');
-  final tags = Keep.list<String>('tags');
-  final settings = Keep.map('settings');
+  final counter = Keep.kInt('counter');
+  final username = Keep.kString('username');
+  final isDarkMode = Keep.kBool('is_dark_mode');
+  final rating = Keep.kDouble('rating');
+  final tags = Keep.kList<String>('tags');
+  final settings = Keep.kMap('settings');
 
   // Secure keys (encrypted)
-  final authToken = Keep.stringSecure('auth_token');
-  final pinCode = Keep.integerSecure('pin_code');
+  final authToken = Keep.kStringSecure('auth_token');
+  final pinCode = Keep.kIntSecure('pin_code');
 
   // External storage (separate files)
-  final largeData = Keep.map('large_data', useExternal: true);
-  final secretFile = Keep.stringSecure('secret_file', useExternal: true);
+  final largeData = Keep.kMap('large_data', useExternal: true);
+  final secretFile = Keep.kStringSecure('secret_file', useExternal: true);
 }
 
 // Global instance

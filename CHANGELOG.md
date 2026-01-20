@@ -1,3 +1,22 @@
+## [0.5.0]
+### Added
+- **Multi-Instance Support:** Multiple `Keep` instances can now run concurrently with independent registries and storage locations.
+  - `Keep` constructor now requires a unique `id` for stable identity and folder naming.
+  - Automatic folder hashing ensures storage isolation based on instance ID.
+- **Refined Static Key Factories:** Renamed factories for brevity and consistency:
+  - `Keep.kInt`, `Keep.kIntSecure`
+  - `Keep.kString`, `Keep.kStringSecure`
+  - `Keep.kBool`, `Keep.kBoolSecure`
+  - `Keep.kDouble`, `Keep.kDoubleSecure`
+  - `Keep.kList`, `Keep.kListSecure`
+  - `Keep.kMap`, `Keep.kMapSecure`
+  - `Keep.custom`, `Keep.customSecure`
+
+### Changed
+- **Breaking:** `Keep` constructor requires positional `id: String`.
+- **Breaking:** `Keep.init()` no longer accepts `folderName` as it is now derived from `id`.
+- `Keep` instances now perform automatic key binding during construction for multi-instance support.
+
 ## [0.4.0]
 ### Added
 - **Version-Based Migration System:** Introduced `KeepCodec` architecture for seamless storage format upgrades

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:keep/src/codec/codec.dart';
 import 'package:keep/src/encrypter/encrypter.dart';
 import 'package:keep/src/key/key.dart';
 import 'package:keep/src/storage/storage.dart';
@@ -10,9 +11,12 @@ import 'package:path_provider/path_provider.dart';
 
 /// Simple, Singleton-based Keep storage with Field-Level Encryption support.
 ///
-/// Use [Keep.integer], [Keep.string], etc., to define your keys as class fields.
+/// Use [Keep.kInt], [Keep.kString], etc., to define your keys as class fields.
 class Keep {
   /// Creates a new [Keep] instance.
+  ///
+  /// [id] is a unique identifier for this storage. It is used to derive
+  /// the directory name where data is stored.
   ///
   /// [onError] is an optional callback invoked whenever a storage or encryption
   /// error occurs.
@@ -22,13 +26,22 @@ class Keep {
   ///
   /// [externalStorage] defines how large blobs are stored. Defaults to
   /// [DefaultKeepExternalStorage].
-  Keep({
+  Keep(
+    this.id, {
     this.onError,
     KeepEncrypter? encrypter,
     KeepStorage? externalStorage,
   }) : externalStorage = externalStorage ?? DefaultKeepExternalStorage(),
        encrypter = encrypter ?? SimpleKeepEncrypter(secureKey: '0' * 32) {
     _bindPending();
+  }
+
+  /// Name of the folder that stores the keep files.
+  final String id;
+
+  /// Hashed name of the folder that stores the keep files.
+  String get _hashedId {
+    return KeepCodec.hash('keep-it-$id');
   }
 
   /// Current binary format version of the keep storage.
@@ -64,13 +77,10 @@ class Keep {
   /// Root directory path of the keep on disk.
   late String _path;
 
-  /// Name of the folder that stores the keep files.
-  late String _folderName;
-
   /// The root directory where keep files are stored.
   @internal
   @protected
-  Directory get root => Directory('$_path/$_folderName');
+  Directory get root => Directory('$_path/$_hashedId');
 
   /// Internal controller used to dispatch change events to [onChange].
   ///
@@ -404,14 +414,12 @@ class Keep {
   /// Initializes the keep by creating directories and starting storage adapters.
   ///
   /// [path] specifies the base directory. Defaults to app support directory.
-  /// [folderName] is the name of the folder created inside [path].
+  /// Folder name is automatically derived from the class name hash.
   @mustCallSuper
-  Future<void> init({String? path, String folderName = 'keep'}) async {
+  Future<void> init({String? path}) async {
     _path = path ?? (await getApplicationSupportDirectory()).path;
-    _folderName = folderName;
 
     await encrypter.init();
-
     await root.create(recursive: true);
 
     await Future.wait([
