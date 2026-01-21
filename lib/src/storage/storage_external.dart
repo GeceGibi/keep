@@ -134,7 +134,6 @@ class DefaultKeepExternalStorage extends KeepStorage {
         id: key.storeName,
         action: () async {
           final file = getFile(key);
-          final tmp = File('${file.path}.tmp');
 
           var flags = 0;
           if (key.removable) flags |= KeepCodec.flagRemovable;
@@ -151,9 +150,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
             return;
           }
 
-          await tmp.create(recursive: true);
-          await tmp.writeAsBytes(bytes, flush: true);
-          await tmp.rename(file.path);
+          await atomicWrite(file, bytes);
 
           _memory[key.storeName] = KeepKeyHeader(
             storeName: key.storeName,

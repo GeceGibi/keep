@@ -1,3 +1,10 @@
+## 0.5.2
+
+- Refactored file write operations with a robust `atomicWrite` utility.
+- Added explicit directory checks and temporary file validation to prevent `PathNotFoundException` during atomic swaps.
+- Improved error handling by ensuring temporary files are cleaned up on failure.
+- Specialized for better stability on emulators and slow file systems.
+
 ## [0.5.1]
 ### Added
 - **Uint8List Support:** New `kBytes` and `kBytesSecure` factories for efficient byte array storage.

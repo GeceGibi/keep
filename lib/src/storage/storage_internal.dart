@@ -56,10 +56,7 @@ class KeepInternalStorage extends KeepStorage {
         final currentMemory = Map<String, KeepKeyValue>.from(memory);
         final bytes = await compute(_encodeAll, currentMemory);
 
-        final tmp = File('${_rootFile.path}.tmp');
-        await tmp.create(recursive: true);
-        await tmp.writeAsBytes(bytes, flush: true);
-        await tmp.rename(_rootFile.path);
+        await atomicWrite(_rootFile, bytes);
       },
       onError: (error) => _keep.onError?.call(error),
     );
