@@ -1,3 +1,12 @@
+## [0.5.1]
+### Added
+- **Uint8List Support:** New `kBytes` and `kBytesSecure` factories for efficient byte array storage.
+- **Custom Serialization for Secure Keys:** Secure factories now support optional `fromStorage` and `toStorage` mappers.
+
+### Changed
+- **Performance:** General optimizations for better memory efficiency and speed.
+- **Code Clarity:** Improved internal factory logic for better readability.
+
 ## [0.5.0]
 ### Added
 - **Multi-Instance Support:** Multiple `Keep` instances can now run concurrently with independent registries and storage locations.
