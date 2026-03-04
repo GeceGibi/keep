@@ -1,3 +1,8 @@
+## 0.7.0
+- **Performance:** Implemented `null` value caching in `KeepKeyPlain` and `KeepKeySecure` to prevent unnecessary repeated disk I/O when reading non-existent keys.
+- **Performance:** Updated `write` methods to immediately cache the newly written value, avoiding an extra disk read on the subsequent `read` call.
+- **Bug Fix:** Removed `unawaited(remove())` from the catch blocks in `read` and `readSync` methods for both `KeepKeyPlain` and `KeepKeySecure`. This prevents disastrous automatic deletion of user data when a simple parsing or schema error occurs.
+
 ## 0.6.0
 - **Binary Codec (V2):** Switched from JSON-based encoding to `StandardMessageCodec` for significant performance gains and smaller storage footprint.
 - **Improved Performance:** Optimized binary serialization for complex and nested data structures.

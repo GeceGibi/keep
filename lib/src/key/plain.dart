@@ -60,12 +60,14 @@ class KeepKeyPlain<T> extends KeepKey<T> {
         false => _keep.internalStorage.readSync<dynamic>(this),
       };
 
-      if (raw == null) return null;
+      if (raw == null) {
+        _hasCachedValue = true;
+        return _cachedValue = null;
+      }
 
       _hasCachedValue = true;
       return _cachedValue = fromStorage != null ? fromStorage!(raw) : raw as T?;
     } on KeepException<dynamic> {
-      unawaited(remove());
       return null;
     } catch (error, stackTrace) {
       final exception = toException(
@@ -75,7 +77,6 @@ class KeepKeyPlain<T> extends KeepKey<T> {
       );
 
       _keep.onError?.call(exception);
-      unawaited(remove());
       return null;
     }
   }
@@ -93,12 +94,14 @@ class KeepKeyPlain<T> extends KeepKey<T> {
           ? externalStorage.read<dynamic>(this)
           : _keep.internalStorage.read<dynamic>(this));
 
-      if (raw == null) return null;
+      if (raw == null) {
+        _hasCachedValue = true;
+        return _cachedValue = null;
+      }
 
       _hasCachedValue = true;
       return _cachedValue = fromStorage != null ? fromStorage!(raw) : raw as T?;
     } on KeepException<dynamic> {
-      unawaited(remove());
       return null;
     } catch (error, stackTrace) {
       final exception = toException(
@@ -108,7 +111,6 @@ class KeepKeyPlain<T> extends KeepKey<T> {
       );
 
       _keep.onError?.call(exception);
-      unawaited(remove());
       return null;
     }
   }
@@ -117,12 +119,10 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   Future<void> write(T value) async {
     await _keep.ensureInitialized;
 
-    // Invalidate cache
-    _cachedValue = null;
-    _hasCachedValue = false;
-
     if (value == null) {
       await remove();
+      _cachedValue = null;
+      _hasCachedValue = true;
     } else {
       try {
         final storageValue = toStorage != null ? toStorage!(value) : value;
@@ -132,6 +132,9 @@ class KeepKeyPlain<T> extends KeepKey<T> {
         } else {
           await _keep.internalStorage.write(this, storageValue);
         }
+
+        _cachedValue = value;
+        _hasCachedValue = true;
       } on KeepException<dynamic> {
         rethrow;
       } catch (error, stackTrace) {

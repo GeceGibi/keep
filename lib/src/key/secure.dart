@@ -65,7 +65,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
       };
 
       if (encrypted == null) {
-        return null;
+        _hasCachedValue = true;
+        return _cachedValue = null;
       }
 
       final decrypted = _keep.encrypter.decryptSync(encrypted);
@@ -74,7 +75,6 @@ class KeepKeySecure<T> extends KeepKey<T> {
       _hasCachedValue = true;
       return _cachedValue = fromStorage(decoded);
     } on KeepException<dynamic> {
-      unawaited(remove());
       return null;
     } catch (error, stackTrace) {
       final exception = toException(
@@ -84,7 +84,6 @@ class KeepKeySecure<T> extends KeepKey<T> {
       );
 
       _keep.onError?.call(exception);
-      unawaited(remove());
       return null;
     }
   }
@@ -105,7 +104,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
       };
 
       if (encrypted == null) {
-        return null;
+        _hasCachedValue = true;
+        return _cachedValue = null;
       }
 
       final decrypted = await _keep.encrypter.decrypt(encrypted);
@@ -114,7 +114,6 @@ class KeepKeySecure<T> extends KeepKey<T> {
       _hasCachedValue = true;
       return _cachedValue = fromStorage(decoded);
     } on KeepException<dynamic> {
-      unawaited(remove());
       return null;
     } catch (error, stackTrace) {
       final exception = toException(
@@ -124,7 +123,6 @@ class KeepKeySecure<T> extends KeepKey<T> {
       );
 
       _keep.onError?.call(exception);
-      unawaited(remove());
       return null;
     }
   }
@@ -134,12 +132,10 @@ class KeepKeySecure<T> extends KeepKey<T> {
   Future<void> write(T value) async {
     await _keep.ensureInitialized;
 
-    // Invalidate cached value
-    _cachedValue = null;
-    _hasCachedValue = false;
-
     if (value == null) {
       await remove();
+      _cachedValue = null;
+      _hasCachedValue = true;
     } else {
       try {
         final payload = toStorage(value);
@@ -153,6 +149,9 @@ class KeepKeySecure<T> extends KeepKey<T> {
         } else {
           await _keep.internalStorage.write(this, encrypted);
         }
+
+        _cachedValue = value;
+        _hasCachedValue = true;
       } on KeepException<dynamic> {
         rethrow;
       } catch (error, stackTrace) {
