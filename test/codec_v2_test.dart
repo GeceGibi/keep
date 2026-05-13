@@ -135,7 +135,7 @@ void main() {
       for (final test in testCases) {
         final encoded = KeepCodec.current.encode(
           storeName: 'test',
-          keyName: test['name'] as String,
+          keyName: test['name']! as String,
           value: test['value'],
           flags: 0,
         );

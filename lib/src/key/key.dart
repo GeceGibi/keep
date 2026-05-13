@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:keep/keep.dart' show KeepEncrypter;
+import 'package:keep/src/encrypter/encrypter.dart' show KeepEncrypter;
 import 'package:keep/src/keep.dart';
 import 'package:keep/src/storage/storage.dart';
 import 'package:keep/src/utils/utils.dart';

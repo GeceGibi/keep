@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:keep/keep.dart' show KeepKey;
+
+import 'package:keep/src/key/key.dart' show KeepKey;
+
 part 'encrypter_simple.dart';
 
 /// Interface for encrypting and decrypting keep data.

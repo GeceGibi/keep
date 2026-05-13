@@ -200,10 +200,10 @@ class KeepWriteQueue {
     while (_pendingOps.isNotEmpty || _activeOperations.isNotEmpty) {
       final futures = <Future<void>>[
         for (final f in _activeOperations.values.toList())
-          f.then<void>((Object? _) {}, onError: (Object _) {}),
+          f.then<void>((_) {}, onError: (Object _) {}),
         for (final op in _pendingOps.values.toList())
           op.completer.future
-              .then<void>((Object? _) {}, onError: (Object _) {}),
+              .then<void>((_) {}, onError: (Object _) {}),
       ];
       if (futures.isEmpty) break;
       await Future.wait(futures);
@@ -218,7 +218,7 @@ class KeepWriteQueue {
   void dispose() {
     _disposed = true;
 
-    final abandoned = const KeepException<dynamic>(
+    const abandoned = KeepException<dynamic>(
       'KeepWriteQueue disposed before pending operation completed.',
     );
 

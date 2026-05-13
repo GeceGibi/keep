@@ -14,36 +14,35 @@ class TestKeep extends Keep {
         ),
       );
 
-  final counter = Keep.kInt('counter');
-  final username = Keep.kString('username');
-  final secureToken = Keep.kStringSecure('token');
+  final KeepKeyPlain<int> counter = Keep.kInt('counter');
+  final KeepKeyPlain<String> username = Keep.kString('username');
+  final KeepKeySecure<String> secureToken = Keep.kStringSecure('token');
 
-  final extData = Keep.kString(
+  final KeepKeyPlain<String> extData = Keep.kString(
     'ext_data',
     useExternal: true,
   );
 
-  final extSecure = Keep.kStringSecure(
+  final KeepKeySecure<String> extSecure = Keep.kStringSecure(
     'ext_secure',
     useExternal: true,
   );
 
-  final extRemovable1 = Keep.kString(
+  final KeepKeyPlain<String> extRemovable1 = Keep.kString(
     'ext_removable_1',
     useExternal: true,
     removable: true,
   );
 
-  final extRemovable2 = Keep.kString(
+  final KeepKeyPlain<String> extRemovable2 = Keep.kString(
     'ext_removable_2',
     useExternal: true,
     removable: true,
   );
 
-  final extNonRemovable = Keep.kString(
+  final KeepKeyPlain<String> extNonRemovable = Keep.kString(
     'ext_non_removable',
     useExternal: true,
-    removable: false,
   );
 }
 

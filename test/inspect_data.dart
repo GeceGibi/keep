@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
 void main() async {
@@ -29,7 +28,7 @@ void main() async {
 }
 
 void testStandardMessageCodec() {
-  final codec = StandardMessageCodec();
+  const codec = StandardMessageCodec();
 
   // Test 1: Simple map
   print('Test 1: Simple Map');
@@ -87,7 +86,7 @@ void testStandardMessageCodec() {
   final bytes3 = Uint8List.view(encoded3.buffer);
   print('Original: $data3');
   print('Encoded size: ${bytes3.length} bytes');
-  hexDump(bytes3, bytesPerLine: 16);
+  hexDump(bytes3);
 
   final decoded3 = codec.decodeMessage(encoded3);
   print('\nDecoded: $decoded3');
@@ -110,7 +109,7 @@ void hexDump(Uint8List bytes, {int bytesPerLine = 16}) {
     // ASCII
     final ascii = line
         .map((b) => b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')
-        .join('');
+        .join();
 
     print('$offset  ${hex.padRight(bytesPerLine * 3)}  $ascii');
   }

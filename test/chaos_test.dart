@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -7,19 +6,19 @@ import 'package:keep/keep.dart';
 
 /// Concrete Keep implementation for chaos testing
 class ChaosKeep extends Keep {
-  ChaosKeep(String id) : super(id);
+  ChaosKeep(super.id);
 
   /// Fast internal key for counter operations
-  final counter = Keep.kInt('counter');
+  final KeepKeyPlain<int> counter = Keep.kInt('counter');
 
   /// Heavy external key for large data
-  final bigData = Keep.kString('big_data', useExternal: true);
+  final KeepKeyPlain<String> bigData = Keep.kString('big_data', useExternal: true);
 
   /// Secure key for sensitive data
-  final secret = Keep.kStringSecure('secret');
+  final KeepKeySecure<String> secret = Keep.kStringSecure('secret');
 
   /// Removable key for cache operations
-  final cache = Keep.kMap('cache', removable: true);
+  final KeepKeyPlain<Map<String, dynamic>> cache = Keep.kMap('cache', removable: true);
 }
 
 void main() {
@@ -77,7 +76,6 @@ void main() {
                   print('Write counter error: $e');
                 }),
               );
-              break;
 
             case 1: // Write External (Heavy)
               operations.add(
@@ -85,7 +83,6 @@ void main() {
                   print('Write bigData error: $e');
                 }),
               );
-              break;
 
             case 2: // Write Secure
               operations.add(
@@ -93,7 +90,6 @@ void main() {
                   print('Write secret error: $e');
                 }),
               );
-              break;
 
             case 3: // Write Removable
               operations.add(
@@ -107,7 +103,6 @@ void main() {
                       print('Write cache error: $e');
                     }),
               );
-              break;
 
             case 4: // Random Removal
               if (rng.nextBool()) {
@@ -123,7 +118,6 @@ void main() {
                   }),
                 );
               }
-              break;
 
             case 5: // Clear Removable (occasional)
               if (i % 50 == 0) {
@@ -133,7 +127,6 @@ void main() {
                   }),
                 );
               }
-              break;
 
             case 6: // Random Read operations
               final readType = rng.nextInt(4);
@@ -149,7 +142,6 @@ void main() {
                           print('Read counter error: $e');
                         }),
                   );
-                  break;
                 case 1:
                   operations.add(
                     keep.bigData
@@ -161,7 +153,6 @@ void main() {
                           print('Read bigData error: $e');
                         }),
                   );
-                  break;
                 case 2:
                   operations.add(
                     keep.secret
@@ -173,7 +164,6 @@ void main() {
                           print('Read secret error: $e');
                         }),
                   );
-                  break;
                 case 3:
                   operations.add(
                     keep.cache
@@ -185,9 +175,7 @@ void main() {
                           print('Read cache error: $e');
                         }),
                   );
-                  break;
               }
-              break;
           }
         }
 

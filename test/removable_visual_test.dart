@@ -12,19 +12,19 @@ class TestKeep extends Keep {
         ),
       );
 
-  final extRemovable1 = Keep.kString(
+  final KeepKeyPlain<String> extRemovable1 = Keep.kString(
     'ext_removable_1',
     useExternal: true,
     removable: true,
   );
 
-  final extRemovable2 = Keep.kString(
+  final KeepKeyPlain<String> extRemovable2 = Keep.kString(
     'ext_removable_2',
     useExternal: true,
     removable: true,
   );
 
-  final extNonRemovable = Keep.kString(
+  final KeepKeyPlain<String> extNonRemovable = Keep.kString(
     'ext_non_removable',
     useExternal: true,
     removable: true,
