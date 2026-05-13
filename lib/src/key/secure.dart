@@ -53,6 +53,12 @@ class KeepKeySecure<T> extends KeepKey<T> {
   bool _hasCachedValue = false;
 
   @override
+  void invalidateCache() {
+    _cachedValue = null;
+    _hasCachedValue = false;
+  }
+
+  @override
   T? readSync() {
     if (_hasCachedValue) {
       return _cachedValue;
@@ -133,9 +139,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
     await _keep.ensureInitialized;
 
     if (value == null) {
-      await remove();
-      _cachedValue = null;
-      _hasCachedValue = true;
+      await _removeInternal();
     } else {
       try {
         final payload = toStorage(value);
@@ -166,6 +170,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
       }
     }
 
-    _keep.onChangeController.add(this);
+    if (!_keep.onChangeController.isClosed) {
+      _keep.onChangeController.add(this);
+    }
   }
 }

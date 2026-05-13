@@ -15,9 +15,7 @@ class KeepCodecOf with KeepCodecUtils {
   ///
   /// The bytes are unShifted once and cached for subsequent operations.
   KeepCodecOf(Uint8List bytes) {
-    _data = bytes.isEmpty
-        ? Uint8List(0)
-        : unShiftBytes(Uint8List.fromList(bytes));
+    _data = bytes.isEmpty ? Uint8List(0) : unShiftBytes(bytes);
 
     codec = _data.isEmpty ? KeepCodec.current : KeepCodec.forVersion(_data[0]);
   }

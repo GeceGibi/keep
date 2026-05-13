@@ -31,6 +31,12 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   bool _hasCachedValue = false;
 
   @override
+  void invalidateCache() {
+    _cachedValue = null;
+    _hasCachedValue = false;
+  }
+
+  @override
   KeepKeyPlain<T> call(String subKeyName) {
     final key =
         KeepKeyPlain<T>(
@@ -120,9 +126,7 @@ class KeepKeyPlain<T> extends KeepKey<T> {
     await _keep.ensureInitialized;
 
     if (value == null) {
-      await remove();
-      _cachedValue = null;
-      _hasCachedValue = true;
+      await _removeInternal();
     } else {
       try {
         final storageValue = toStorage != null ? toStorage!(value) : value;
@@ -149,6 +153,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
       }
     }
 
-    _keep.onChangeController.add(this);
+    if (!_keep.onChangeController.isClosed) {
+      _keep.onChangeController.add(this);
+    }
   }
 }

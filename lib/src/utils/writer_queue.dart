@@ -1,50 +1,47 @@
 part of 'utils.dart';
 
-/// A helper to manage debounced and queued side-effect operations (like writes).
+/// A helper to manage debounced and queued side-effect operations (like
+/// writes).
 ///
 /// This class ensures that operations with the same [id] are:
-/// 1. **Debounced**: Rapid successive calls cancel previous pending timers
-/// 2. **Queued**: Operations execute sequentially, waiting for previous ones to complete
+/// 1. **Debounced** — Rapid successive calls cancel previous pending timers so
+///    only the latest action's body executes against disk.
+/// 2. **Queued** — Operations execute sequentially per [id], waiting for any
+///    in-flight previous operation to complete before starting.
+/// 3. **Durable for awaiters** — When a pending call is superseded by a newer
+///    one (debounced), the original caller's future is NOT silently completed
+///    with `null`. Instead it is chained to the next operation that actually
+///    runs; the awaiter only resolves once the successor has flushed to disk.
+///    This preserves the invariant that `await write()` returning means the
+///    underlying data is persistent.
 @internal
 class KeepWriteQueue {
+  /// Currently scheduled (timer not yet fired) operations, keyed by [id].
   final Map<String, _PendingOp<dynamic>> _pendingOps = {};
+
+  /// In-flight operations whose action is currently running, keyed by [id].
   final Map<String, Future<dynamic>> _activeOperations = {};
+
+  /// Completers from operations that were superseded by a newer pending op for
+  /// the same [id]. They are resolved (with the same result/error) when the
+  /// next successor for that [id] finishes executing, so awaiters see durable
+  /// completion instead of a phantom `null`.
+  final Map<String, List<Completer<dynamic>>> _supersededCompleters = {};
+
+  bool _disposed = false;
 
   /// Runs an [action] for the given [id] with an optional [delay].
   ///
-  /// **Debounce behavior:**
-  /// If a new action with the same [id] arrives within [delay], the previous
-  /// pending action's timer is canceled and its completer is completed with an error.
-  /// This prevents awaiting callers from hanging indefinitely.
+  /// Behaviour:
+  /// - If another pending op for [id] exists, its timer is cancelled and its
+  ///   completer is chained: it will resolve with the result of whichever
+  ///   newer op eventually runs to completion.
+  /// - Once [delay] elapses, the action joins a sequential queue per [id] and
+  ///   waits for any active op to finish before executing.
   ///
-  /// **Queue behavior:**
-  /// Once the [delay] passes, the action enters a sequential queue for that [id]
-  /// and waits for any ongoing operation to finish before executing.
-  ///
-  /// **Parameters:**
-  /// - [id]: Unique identifier for grouping operations
-  /// - [action]: The async function to execute
-  /// - [delay]: Debounce delay before execution (default: zero)
-  /// - [onError]: Optional callback invoked when [action] throws an error
-  ///
-  /// **Returns:**
-  /// A [Future] that completes with the result of [action], or completes with
-  /// an error if [action] throws or if the operation is superseded by a newer one.
-  ///
-  /// **Example:**
-  /// ```dart
-  /// final queue = KeepWriteQueue();
-  ///
-  /// // These calls will be debounced - only the last one executes
-  /// queue.run(id: 'user1', action: () => saveUser('Alice'), delay: Duration(milliseconds: 300));
-  /// queue.run(id: 'user1', action: () => saveUser('Bob'), delay: Duration(milliseconds: 300));
-  /// // First call is canceled, only 'Bob' is saved after 300ms
-  ///
-  /// // These execute sequentially for the same id
-  /// queue.run(id: 'user1', action: () => operation1());
-  /// queue.run(id: 'user1', action: () => operation2());
-  /// // operation2 waits for operation1 to complete
-  /// ```
+  /// The returned [Future] only completes after the action (or a successor
+  /// that supersedes it) has finished, providing strong durability semantics
+  /// for callers.
   Future<T> run<T>({
     required String id,
     required Future<T> Function() action,
@@ -53,63 +50,69 @@ class KeepWriteQueue {
   }) {
     final completer = Completer<T>();
 
-    // Cancel existing pending operation for this id (Debounce)
-    _pendingOps.remove(id)?.cancel();
+    if (_disposed) {
+      completer.completeError(
+        const KeepException<dynamic>(
+          'KeepWriteQueue.run called after dispose().',
+        ),
+      );
+      return completer.future;
+    }
 
-    // Schedule the action to run after the delay
+    // Debounce: transfer the previous pending op's completer to the
+    // superseded list. It will be completed when the next successor finishes.
+    final existing = _pendingOps.remove(id);
+    if (existing != null) {
+      existing.timer.cancel();
+      _supersededCompleters
+          .putIfAbsent(id, () => <Completer<dynamic>>[])
+          .add(existing.completer);
+    }
+
     final timer = Timer(delay, () {
       _pendingOps.remove(id);
       unawaited(_executeQueued(id, action, completer, onError));
     });
 
-    _pendingOps[id] = _PendingOp(
-      timer: timer,
-      completer: completer,
-    );
-
+    _pendingOps[id] = _PendingOp(timer: timer, completer: completer);
     return completer.future;
   }
 
-  /// Executes an [action] in a sequential queue for the given [id].
-  ///
-  /// This method ensures that operations with the same [id] execute one at a time.
-  /// It waits for any previous operation to complete before starting the new one.
-  ///
-  /// **Parameters:**
-  /// - [id]: Unique identifier for the operation queue
-  /// - [action]: The async function to execute
-  /// - [completer]: The completer to resolve with the action's result or error
-  /// - [onError]: Optional callback invoked when [action] throws an error
+  /// Executes [action] sequentially per [id]. Waits for any previous active
+  /// op to finish (ignoring its error), then runs and propagates the result to
+  /// both this op's completer and any superseded completers.
   Future<void> _executeQueued<T>(
     String id,
     Future<T> Function() action,
     Completer<T> completer,
     void Function(KeepException<dynamic> error)? onError,
   ) async {
-    // Wait for any previous operation with the same id to complete
     final previousOperation = _activeOperations[id];
     if (previousOperation != null) {
-      await previousOperation.catchError((_) => null);
+      await previousOperation.catchError((Object _) {});
     }
 
-    // Track this operation as the active one
     final currentOperationCompleter = Completer<T>();
     _activeOperations[id] = currentOperationCompleter.future;
 
     try {
-      // Execute the action
       final result = await action();
 
-      // Complete both the internal and external completers with the result
       if (!currentOperationCompleter.isCompleted) {
         currentOperationCompleter.complete(result);
       }
+      // Resolve superseded BEFORE the current op's completer so that
+      // microtask order matches original call order: the supersede list is
+      // stored in call order [C0, C1, ..., Cn-1] and the current op is the
+      // most recent caller Cn. Completing Cn last guarantees that any
+      // post-await side effect installed by callers (e.g. cache writes,
+      // listener notifications) ends up reflecting the most recent intent.
+      _resolveSuperseded(id, result: result);
       if (!completer.isCompleted) {
         completer.complete(result);
       }
     } catch (error, stackTrace) {
-      // Wrap non-KeepException errors
-      final exception = (error is KeepException)
+      final exception = error is KeepException
           ? error
           : KeepException<dynamic>(
               error.toString(),
@@ -117,69 +120,141 @@ class KeepWriteQueue {
               stackTrace: stackTrace,
             );
 
-      // Notify error callback if provided
       onError?.call(exception);
 
-      // Complete both completers with the error
       if (!currentOperationCompleter.isCompleted) {
-        currentOperationCompleter.completeError(exception);
+        currentOperationCompleter.completeError(exception, stackTrace);
       }
+      // Same call-order rationale as the success path above.
+      _resolveSuperseded(id, error: exception, stackTrace: stackTrace);
       if (!completer.isCompleted) {
-        completer.completeError(exception);
+        completer.completeError(exception, stackTrace);
       }
     } finally {
-      // Clean up if this is still the active operation
-      if (_activeOperations[id] == currentOperationCompleter.future) {
-        _activeOperations.remove(id)?.ignore();
+      if (identical(_activeOperations[id], currentOperationCompleter.future)) {
+        _activeOperations.remove(id);
       }
     }
   }
 
-  /// Cancels all pending debounce timers.
+  /// Completes any superseded completers waiting on [id] using the successor's
+  /// outcome. Type-unsafe completions (different `T`) fall back to `null` or
+  /// finally to an error if neither is assignable.
+  void _resolveSuperseded(
+    String id, {
+    Object? result,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final list = _supersededCompleters.remove(id);
+    if (list == null) return;
+
+    for (final c in list) {
+      if (c.isCompleted) continue;
+      if (error != null) {
+        c.completeError(error, stackTrace);
+        continue;
+      }
+      try {
+        c.complete(result);
+      } catch (_) {
+        try {
+          c.complete(null);
+        } catch (_) {
+          c.completeError(
+            const KeepException<dynamic>(
+              'Superseded operation result type mismatch.',
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// Awaits any in-flight (active or pending) operation for [id] without
+  /// participating in the debounce queue.
   ///
-  /// This should be called when the storage is being disposed to prevent
-  /// pending scheduled writes from executing on a closed/deleted file system.
-  /// All pending operations will be completed with an error.
+  /// Intended for read paths that need to observe the latest committed write
+  /// but must NOT be debounced themselves. Reads call [awaitSettled] then
+  /// touch the underlying store directly.
+  Future<void> awaitSettled(String id) async {
+    final active = _activeOperations[id];
+    if (active != null) {
+      await active.catchError((Object _) {});
+    }
+    final pending = _pendingOps[id];
+    if (pending != null) {
+      await pending.completer.future.catchError((Object _) => null);
+    }
+  }
+
+  /// Awaits ALL outstanding operations across every [id] to settle without
+  /// cancelling anything.
+  ///
+  /// This is the safe way to ensure durability before tearing down: call
+  /// [flush] before [dispose] so that pending writes are not lost.
+  ///
+  /// Loops because new ops can be scheduled while we're awaiting (e.g. an
+  /// active op enqueues a successor). Returns once the queue is drained.
+  Future<void> flush() async {
+    while (_pendingOps.isNotEmpty || _activeOperations.isNotEmpty) {
+      final futures = <Future<void>>[
+        for (final f in _activeOperations.values.toList())
+          f.then<void>((Object? _) {}, onError: (Object _) {}),
+        for (final op in _pendingOps.values.toList())
+          op.completer.future
+              .then<void>((Object? _) {}, onError: (Object _) {}),
+      ];
+      if (futures.isEmpty) break;
+      await Future.wait(futures);
+    }
+  }
+
+  /// Abandons all pending operations and prevents further [run] calls.
+  ///
+  /// Pending and superseded completers are completed with a `KeepException`
+  /// so awaiting callers fail fast instead of hanging forever. Callers that
+  /// need durability must invoke [flush] BEFORE [dispose].
   void dispose() {
+    _disposed = true;
+
+    final abandoned = const KeepException<dynamic>(
+      'KeepWriteQueue disposed before pending operation completed.',
+    );
+
     for (final op in _pendingOps.values) {
-      op.cancel();
+      op.timer.cancel();
+      if (!op.completer.isCompleted) {
+        op.completer.completeError(abandoned);
+      }
     }
     _pendingOps.clear();
+
+    for (final list in _supersededCompleters.values) {
+      for (final c in list) {
+        if (!c.isCompleted) {
+          c.completeError(abandoned);
+        }
+      }
+    }
+    _supersededCompleters.clear();
+
     _activeOperations.clear();
   }
 }
 
-/// Holds a pending debounced operation.
-///
-/// Contains the timer and completer that will be canceled/completed
-/// if a newer operation with the same id arrives before the delay expires.
+/// Holds a pending debounced operation: its timer and the completer returned
+/// to the original caller of [KeepWriteQueue.run].
 class _PendingOp<T> {
-  _PendingOp({
-    required this.timer,
-    required this.completer,
-  });
+  _PendingOp({required this.timer, required this.completer});
 
-  /// The timer that schedules the operation execution after the debounce delay
+  /// The timer that will execute the operation once the debounce delay
+  /// elapses. Cancelled when the op is superseded or the queue is disposed.
   final Timer timer;
 
-  /// The completer that will be resolved when the operation executes or is canceled
+  /// The future surfaced to the caller of [KeepWriteQueue.run]. May be
+  /// completed by either the op's own [_executeQueued] invocation or, when
+  /// superseded, by [KeepWriteQueue._resolveSuperseded] using a later op's
+  /// outcome.
   final Completer<T> completer;
-
-  /// Cancels the pending operation by stopping the timer.
-  ///
-  /// Tries to complete with `null` so callers awaiting `write()` don't see an exception.
-  /// If `T` is strictly non-nullable and `null` is unsafe, falls back to error.
-  void cancel() {
-    timer.cancel();
-    if (!completer.isCompleted) {
-      try {
-        // Most Keep operations return void or T?, so null is usually fine.
-        completer.complete(null as T?);
-      } catch (_) {
-        completer.completeError(
-          const KeepException<dynamic>('Operation superseded by newer request'),
-        );
-      }
-    }
-  }
 }

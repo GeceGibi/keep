@@ -32,9 +32,16 @@ class Keep with KeepCodecUtils {
     KeepEncrypter? encrypter,
     KeepStorage? externalStorage,
   }) : externalStorage = externalStorage ?? DefaultKeepExternalStorage(),
+       _usingDefaultEncrypter = encrypter == null,
        encrypter = encrypter ?? SimpleKeepEncrypter(secureKey: '0' * 32) {
     _bindPending();
   }
+
+  /// Whether the encrypter was created by [Keep] itself (i.e. the user did
+  /// not provide one). When `true`, [init] emits a debug-mode warning if any
+  /// secure keys are registered, because the fallback [SimpleKeepEncrypter]
+  /// is keyed with a publicly known constant.
+  final bool _usingDefaultEncrypter;
 
   /// Name of the folder that stores the keep files.
   final String id;
@@ -516,6 +523,11 @@ class Keep with KeepCodecUtils {
   ///
   /// [path] specifies the base directory. Defaults to app support directory.
   /// Folder name is automatically derived from the class name hash.
+  ///
+  /// If initialization fails, [_initCompleter] is completed with the error so
+  /// subsequent `ensureInitialized` awaits throw instead of hanging forever.
+  /// The original exception is also propagated to the caller via [onError]
+  /// and rethrown.
   @mustCallSuper
   Future<void> init({String? path}) async {
     if (_initCompleter.isCompleted || _isInitializing) {
@@ -524,17 +536,82 @@ class Keep with KeepCodecUtils {
 
     _isInitializing = true;
 
-    _path = path ?? (await getApplicationSupportDirectory()).path;
+    try {
+      _path = path ?? (await getApplicationSupportDirectory()).path;
 
-    await encrypter.init();
-    await root.create(recursive: true);
+      await encrypter.init();
+      await root.create(recursive: true);
 
-    await Future.wait([
-      internalStorage.init(this),
-      externalStorage.init(this),
-    ]);
+      await Future.wait([
+        internalStorage.init(this),
+        externalStorage.init(this),
+      ]);
 
-    _initCompleter.complete();
+      // Warn in debug builds when secure keys are used together with the
+      // built-in fallback encrypter, whose key is a public constant and
+      // offers only basic obfuscation.
+      if (_usingDefaultEncrypter &&
+          kDebugMode &&
+          _registry.values.any((k) => k is KeepKeySecure)) {
+        debugPrint(
+          '⚠️ Keep: Using the default SimpleKeepEncrypter with a public key. '
+          'This provides only basic obfuscation and is NOT safe for sensitive '
+          'data. Provide a strong `encrypter` (e.g. AES-GCM backed by a '
+          'platform keychain) via the Keep constructor.',
+        );
+      }
+
+      _initCompleter.complete();
+    } catch (error, stackTrace) {
+      final exception = error is KeepException
+          ? error
+          : KeepException<dynamic>(
+              'Failed to initialize Keep',
+              error: error,
+              stackTrace: stackTrace,
+            );
+
+      onError?.call(exception);
+
+      if (!_initCompleter.isCompleted) {
+        _initCompleter.completeError(exception, stackTrace);
+      }
+
+      rethrow;
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  /// Per-key serialization locks used by [KeepKey.update] to prevent
+  /// lost-update races between concurrent atomic updates targeting the same
+  /// underlying key.
+  final Map<String, Future<void>> _serialLocks = {};
+
+  /// Runs [action] under a per-key mutex keyed by [id].
+  ///
+  /// Successive callers with the same [id] are queued and execute strictly
+  /// sequentially. The result (or error) of [action] is returned/thrown to
+  /// the caller; errors do not poison the queue — the next waiter still
+  /// runs.
+  @internal
+  Future<R> runSerialized<R>(String id, Future<R> Function() action) async {
+    final previous = _serialLocks[id];
+    final completer = Completer<void>();
+    _serialLocks[id] = completer.future;
+
+    try {
+      if (previous != null) {
+        await previous.catchError((Object _) {});
+      }
+      return await action();
+    } finally {
+      completer.complete();
+      // Only clear the slot if no later caller has replaced it.
+      if (identical(_serialLocks[id], completer.future)) {
+        _serialLocks.remove(id);
+      }
+    }
   }
 
   /// Returns a snapshot of all keys currently stored in the internal (memory) storage.
@@ -569,29 +646,63 @@ class Keep with KeepCodecUtils {
       externalStorage.clearRemovable(),
     ]);
 
-    // Notify currently registered removable keys that their data has been cleared.
-    // This updates any UI listening to these keys.
-    removableKeys.forEach(onChangeController.add);
+    // Invalidate caches and notify currently registered removable keys that
+    // their data has been cleared so any UI listening to these keys updates.
+    for (final key in removableKeys) {
+      key.invalidateCache();
+      if (!onChangeController.isClosed) {
+        onChangeController.add(key);
+      }
+    }
   }
 
   /// Deletes all data from both internal and external storage.
   ///
   /// This is a complete reset of the keep. It removes the main database file
   /// and all individual external files. Active listeners will be notified
-  /// with a `null` value event.
+  /// with a `null` value event after their caches are invalidated.
   Future<void> clear() async {
     await ensureInitialized;
 
     await externalStorage.clear();
     await internalStorage.clear();
 
-    // Notify all keys in the registry so they can update their respective UI components.
-    _registry.values.forEach(onChangeController.add);
+    // Invalidate caches for all known keys and notify listeners.
+    for (final key in _registry.values) {
+      key.invalidateCache();
+      if (!onChangeController.isClosed) {
+        onChangeController.add(key);
+      }
+    }
+  }
+
+  /// Flushes any pending writes in both internal and external storage to
+  /// disk.
+  ///
+  /// `await keep.flush()` returns only after every in-flight or debounced
+  /// write has been persisted. Most callers do not need to invoke this —
+  /// `await keepKey.write(...)` already guarantees durability for that
+  /// particular value — but `flush` is useful in two situations:
+  ///
+  /// 1. You issued one or more `unawaited(keepKey.write(...))` calls and now
+  ///    want to ensure they have all reached disk (e.g. before exiting a
+  ///    test, or before calling [dispose]).
+  /// 2. You want to make a snapshot of the storage directory at a known
+  ///    consistent point.
+  Future<void> flush() async {
+    await ensureInitialized;
+    await Future.wait([
+      internalStorage.flush(),
+      externalStorage.flush(),
+    ]);
   }
 
   /// Disposes resources held by this [Keep] instance.
   ///
-  /// Call this when the [Keep] instance is no longer needed to prevent memory leaks.
+  /// Pending writes are flushed to disk before tearing down the underlying
+  /// writer queues so that data is never silently lost during shutdown. Call
+  /// this when the [Keep] instance is no longer needed to prevent memory
+  /// leaks.
   Future<void> dispose() async {
     await onChangeController.close();
     await internalStorage.dispose();

@@ -3,21 +3,30 @@ part of 'utils.dart';
 /// Utility mixin for codec operations.
 mixin KeepCodecUtils {
   /// Obfuscates bytes using a bitwise left rotation (ROL 1).
+  ///
+  /// Returns a freshly allocated [Uint8List]; the input buffer is not
+  /// modified. Callers that need an in-place transform should copy the
+  /// result back themselves.
   Uint8List shiftBytes(Uint8List bytes) {
+    final out = Uint8List(bytes.length);
     for (var i = 0; i < bytes.length; i++) {
       final b = bytes[i];
-      bytes[i] = ((b << 1) | (b >> 7)) & 0xFF;
+      out[i] = ((b << 1) | (b >> 7)) & 0xFF;
     }
-    return bytes;
+    return out;
   }
 
   /// Reverses the bitwise rotation obfuscation (ROR 1).
+  ///
+  /// Returns a freshly allocated [Uint8List]; the input buffer is not
+  /// modified.
   Uint8List unShiftBytes(Uint8List bytes) {
+    final out = Uint8List(bytes.length);
     for (var i = 0; i < bytes.length; i++) {
       final b = bytes[i];
-      bytes[i] = ((b >> 1) | (b << 7)) & 0xFF;
+      out[i] = ((b >> 1) | (b << 7)) & 0xFF;
     }
-    return bytes;
+    return out;
   }
 
   /// Generates a non-reversible hash for a given [key] name using DJB2.

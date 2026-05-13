@@ -20,7 +20,7 @@ A type-safe, reactive local storage solution for Flutter with field-level encryp
 
 ```yaml
 dependencies:
-  keep: ^0.3.0
+  keep: ^1.0.0
 ```
 
 ---

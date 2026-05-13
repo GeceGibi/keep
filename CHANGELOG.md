@@ -1,3 +1,106 @@
+## 1.0.0
+
+This is a major release focused on **data durability**, **reactivity correctness**,
+and **concurrency safety**. Several long-standing bugs that could cause silent
+data loss or stale UI have been fixed. Most changes are transparent to existing
+code, but a few have behavioral implications — see _Migration Notes_ at the end.
+
+### Durability (BREAKING)
+
+- **Bug Fix:** `await keepKey.write(value)` for internal storage now blocks until
+  the value is durably persisted to disk. Previously `saveMemory()` was
+  fire-and-forget (`unawaited`), so a process crash immediately after
+  `await write()` could lose the written value despite the apparent success.
+- **Bug Fix:** `Keep.dispose()` now flushes all pending writes to disk before
+  tearing down the writer queues. Previously pending debounced writes were
+  cancelled and their data lost forever.
+- **Bug Fix:** When a debounced pending operation is superseded by a newer one
+  (`KeepWriteQueue.run`), the original caller's future is now resolved with the
+  **successor's** outcome instead of being silently completed with `null`. This
+  guarantees that `await write(...)` returning means data is persistent for
+  every caller in a debounce chain, not just the most recent one.
+- **New API:** `Keep.flush()` drains all pending writes to disk across both
+  internal and external storage. Useful after fire-and-forget
+  `unawaited(write(...))` patterns or before snapshotting the storage directory.
+- **New API:** `KeepStorage.flush()` interface method (default no-op) lets
+  storage adapters expose their flush semantics.
+- **New API:** `KeepWriteQueue.flush()` waits for all in-flight and pending
+  operations to settle without cancelling them; `awaitSettled(id)` waits for a
+  specific id.
+
+### Reactivity (BREAKING)
+
+- **Bug Fix:** `KeepKey.remove()` now invalidates the in-memory value cache and
+  emits a change event on `onChangeController`. Previously a removed key kept
+  returning its stale cached value from `readSync()`/`read()`, and listeners
+  (`KeepBuilder`, `key.stream`) never observed the removal.
+- **Bug Fix:** `Keep.clear()` and `Keep.clearRemovable()` now invalidate the
+  per-key caches of all (or removable) registered keys before notifying
+  listeners.
+- **Bug Fix:** `KeepBuilder` is now a `StatefulWidget` that holds the latest
+  value in widget state. Previously the `StreamBuilder` + `FutureBuilder`
+  combination issued a fresh `read()` future on every parent rebuild, causing
+  flicker and transient `null` frames.
+
+### Storage Engine
+
+- **Bug Fix:** Concurrent external reads on the same key no longer return
+  phantom `null` due to the writer queue's debounce. Reads now bypass the queue
+  and use `awaitSettled` to observe in-flight writes without participating in
+  cancellation.
+- **Bug Fix:** External storage `read()` / `readSync()` no longer delete the
+  underlying file when decoding returns `null`, completing the 0.7.0 fix that
+  already removed this automatic deletion in error paths.
+- **Bug Fix:** `KeepInternalStorage.read()` now awaits `Keep.ensureInitialized`
+  so callers that bypass the `KeepKey` wrapper still observe a fully loaded
+  memory map.
+
+### Robustness
+
+- **Bug Fix:** `Keep.init()` now wraps initialization in a `try/catch` and
+  completes its internal completer with an error on failure. Previously a
+  failed init left the completer permanently pending, causing every subsequent
+  `ensureInitialized` await to hang forever.
+- **Bug Fix:** `KeepKey.update()` now serializes concurrent atomic updates
+  targeting the same key via a per-key mutex (`Keep.runSerialized`), preventing
+  classic lost-update races where two callers read the same value and
+  overwrite each other.
+- **Bug Fix:** `SubKeyManager.toList()` no longer silently swallows header read
+  errors; failures are now surfaced via `Keep.onError`.
+- **Bug Fix:** All `onChangeController.add(...)` call sites guard against a
+  closed controller, preventing crashes when a fire-and-forget write resolves
+  after `Keep.dispose()`.
+
+### Security
+
+- **Improvement:** `SimpleKeepEncrypter` now asserts that `secureKey` is at
+  least 8 characters long.
+- **Improvement:** `Keep.init()` emits a debug-mode warning when the default
+  fallback `SimpleKeepEncrypter` is used together with any `KeepKeySecure`,
+  since the default key is a public constant that offers only basic
+  obfuscation.
+
+### Codec
+
+- **Bug Fix:** `shiftBytes` and `unShiftBytes` no longer mutate their input
+  buffer; they return a freshly allocated `Uint8List`. The defensive
+  `Uint8List.fromList` copy inside `KeepCodecOf` has been removed since the
+  mixin is now safe.
+
+### Migration Notes
+
+- `await keepKey.write(value)` for internal storage is now stricter about
+  durability and therefore slower for sequential awaited writes (roughly
+  matching external storage throughput). For high-frequency writes that
+  previously relied on fire-and-forget semantics, switch to
+  `unawaited(write(...))` followed by a single `await keep.flush()` at the
+  appropriate flush point — supersede chaining still coalesces these into a
+  single disk write while preserving durability for every awaiter.
+- Custom `KeepStorage` implementations may override `flush()` to expose their
+  own queue draining; the default implementation is a no-op.
+- Code that depended on `shiftBytes` / `unShiftBytes` mutating in place must
+  now use the returned `Uint8List`.
+
 ## 0.7.0
 - **Performance:** Implemented `null` value caching in `KeepKeyPlain` and `KeepKeySecure` to prevent unnecessary repeated disk I/O when reading non-existent keys.
 - **Performance:** Updated `write` methods to immediately cache the newly written value, avoiding an extra disk read on the subsequent `read` call.
@@ -15,7 +118,6 @@
 - Fixed race condition in initialization.
 
 ## 0.5.2
-
 - Refactored file write operations with a robust `atomicWrite` utility.
 - Added explicit directory checks and temporary file validation to prevent `PathNotFoundException` during atomic swaps.
 - Improved error handling by ensuring temporary files are cleaned up on failure.

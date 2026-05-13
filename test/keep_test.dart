@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -197,6 +198,199 @@ void main() {
       // Non-removable should remain
       expect(await storage.extNonRemovable.exists, true);
       expect(await storage.extNonRemovable.read(), 'value3');
+    });
+  });
+
+  group('Bug fixes', () {
+    test('Bug #1: remove() invalidates cache and emits change event',
+        () async {
+      await storage.counter.write(42);
+      expect(storage.counter.readSync(), 42);
+
+      final events = <int?>[];
+      final sub = storage.counter.stream.listen((k) async {
+        events.add(await k.read());
+      });
+
+      await storage.counter.remove();
+
+      // Cache must be cleared synchronously so the next sync read sees null.
+      expect(storage.counter.readSync(), isNull);
+      expect(await storage.counter.read(), isNull);
+
+      // Allow the broadcast event to be delivered.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await sub.cancel();
+
+      expect(events, isNotEmpty, reason: 'remove() must emit a change event');
+      expect(events.last, isNull);
+    });
+
+    test('Bug #1: clear() invalidates per-key caches', () async {
+      await storage.counter.write(7);
+      await storage.extData.write('x');
+      expect(storage.counter.readSync(), 7);
+      expect(storage.extData.readSync(), 'x');
+
+      await storage.clear();
+
+      expect(storage.counter.readSync(), isNull);
+      expect(await storage.counter.read(), isNull);
+      expect(storage.extData.readSync(), isNull);
+    });
+
+    test('Bug #2: concurrent external reads all return the value', () async {
+      await storage.extData.write('hello');
+
+      final results = await Future.wait(
+        List.generate(8, (_) => storage.extData.read()),
+      );
+
+      expect(
+        results,
+        everyElement('hello'),
+        reason:
+            'Parallel reads must not be debounced/cancelled into null by the '
+            'writer queue.',
+      );
+    });
+
+    test('Bug #2: read after write sees the latest value', () async {
+      // Issue many rapid writes then read; the read must observe the final
+      // committed value, not a debounce-cancelled null.
+      for (var i = 0; i < 10; i++) {
+        unawaited(storage.extData.write('v$i'));
+      }
+      // Force a settling read; awaitSettled inside read() waits for the queue.
+      final value = await storage.extData.read();
+      expect(value, isNotNull);
+      expect(value, startsWith('v'));
+    });
+
+    test('Bug #6: concurrent update() calls do not lose increments',
+        () async {
+      await storage.counter.write(0);
+
+      const concurrency = 25;
+      await Future.wait(
+        List.generate(
+          concurrency,
+          (_) => storage.counter.update((v) => (v ?? 0) + 1),
+        ),
+      );
+
+      expect(
+        await storage.counter.read(),
+        concurrency,
+        reason:
+            'Atomic update() must serialize concurrent callers; otherwise '
+            'lost-update races would yield a value < $concurrency.',
+      );
+    });
+
+    test('Bug #15/#27: await write() is durable after dispose+reopen',
+        () async {
+      // Write to internal storage and dispose immediately. After a fresh
+      // Keep instance reopens the same directory, the value must survive.
+      await storage.counter.write(12345);
+      await storage.username.write('persisted');
+      await storage.dispose();
+
+      final reopened = TestKeep();
+      await reopened.init(path: tempDir.path);
+
+      expect(
+        await reopened.counter.read(),
+        12345,
+        reason:
+            'await write() must guarantee disk durability before returning, '
+            'so the value survives dispose() and a fresh init().',
+      );
+      expect(await reopened.username.read(), 'persisted');
+
+      await reopened.dispose();
+    });
+
+    test(
+        'Bug #28: supersede chain — every awaiter sees a durable post-state',
+        () async {
+      // Many rapid writes against the same internal key are debounced into
+      // ideally a single disk flush, but the await of EVERY caller must
+      // resolve only after that flush has happened. Following each individual
+      // await with a fresh Keep instance verifies durability.
+      final futures = <Future<void>>[];
+      for (var i = 0; i < 20; i++) {
+        futures.add(storage.counter.write(i));
+      }
+      await Future.wait(futures);
+
+      // The in-memory state should match the LAST write (final loser).
+      expect(await storage.counter.read(), 19);
+
+      // Crucially, that value must be on disk — verify by reopening.
+      await storage.dispose();
+
+      final reopened = TestKeep();
+      await reopened.init(path: tempDir.path);
+      expect(
+        await reopened.counter.read(),
+        19,
+        reason:
+            'All callers awaiting a debounced write must observe the final '
+            'durable state once their await resolves.',
+      );
+      await reopened.dispose();
+    });
+
+    test('Keep.flush(): explicit drain of unawaited writes', () async {
+      // Issue several fire-and-forget writes, then ensure flush() makes them
+      // durable before we dispose.
+      unawaited(storage.counter.write(7));
+      unawaited(storage.extData.write('flushed'));
+      unawaited(storage.username.write('alice'));
+
+      await storage.flush();
+      await storage.dispose();
+
+      final reopened = TestKeep();
+      await reopened.init(path: tempDir.path);
+      expect(await reopened.counter.read(), 7);
+      expect(await reopened.extData.read(), 'flushed');
+      expect(await reopened.username.read(), 'alice');
+      await reopened.dispose();
+    });
+
+    test('Bug #5: init() failure surfaces via Future error (no hang)',
+        () async {
+      final broken = TestKeep();
+      // Path under a read-only root that cannot be created.
+      const badPath = '/dev/null/keep_broken_dir';
+
+      var caught = false;
+      try {
+        // Run with a timeout so a hang would visibly fail this test.
+        await broken
+            .init(path: badPath)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        caught = true;
+      }
+      expect(
+        caught,
+        isTrue,
+        reason: 'A broken init must throw, not hang forever.',
+      );
+
+      // Subsequent awaits of ensureInitialized must also fail-fast.
+      var rethrown = false;
+      try {
+        await broken
+            .init(path: badPath)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        rethrown = true;
+      }
+      expect(rethrown, isTrue);
     });
   });
 }

@@ -57,6 +57,12 @@ abstract class KeepStorage {
   /// Deletes all entries in this storage instance.
   FutureOr<void> clear();
 
+  /// Flushes any pending writes to durable storage.
+  ///
+  /// Default implementation is a no-op; storages that batch or debounce writes
+  /// should override this to wait for outstanding I/O to settle.
+  Future<void> flush() async {}
+
   /// Disposes resources held by the storage adapter.
   Future<void> dispose();
 }

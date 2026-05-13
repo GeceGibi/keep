@@ -48,9 +48,15 @@ class KeepInternalStorage extends KeepStorage {
     }
   }
 
-  /// Saves the current memory state to disk.
+  /// Saves the current memory state to disk and awaits the actual flush.
+  ///
+  /// Multiple rapid calls are debounced through [KeepWriteQueue]: only the
+  /// latest enqueued snapshot is written, but ALL awaiting callers resolve
+  /// once that flush completes (via the queue's supersede chain). This is
+  /// what gives `await write()` its durability guarantee even when several
+  /// writes are concurrently coalesced into a single disk operation.
   Future<void> saveMemory() async {
-    _writer.run(
+    await _writer.run<void>(
       id: 'main',
       action: () async {
         final currentMemory = Map<String, KeepKeyValue>.from(memory);
@@ -63,12 +69,20 @@ class KeepInternalStorage extends KeepStorage {
   }
 
   /// Asynchronously reads a value from the memory cache.
+  ///
+  /// Awaits [Keep.ensureInitialized] so callers that access storage directly
+  /// (bypassing the [KeepKey] wrapper) still observe a fully loaded memory
+  /// map. Sync read remains the fast path once init has completed.
   @override
   Future<V?> read<V>(KeepKey<dynamic> key) async {
+    await _keep.ensureInitialized;
     return readSync<V>(key);
   }
 
-  /// Writes a value to the memory cache and triggers a persistence sync.
+  /// Writes a value to the memory cache and awaits the disk flush.
+  ///
+  /// The returned future only resolves once the value is durably persisted
+  /// (or after a successor write that already includes it has flushed).
   @override
   Future<void> write(KeepKey<dynamic> key, dynamic value) async {
     var flags = 0;
@@ -87,31 +101,32 @@ class KeepInternalStorage extends KeepStorage {
       version: KeepCodec.current.version,
       type: KeepType.inferType(value),
     );
-    unawaited(saveMemory());
+    await saveMemory();
   }
 
-  /// Removes an entry from memory and triggers a persistence sync.
+  /// Removes an entry from memory and awaits the disk flush.
   @override
   Future<void> remove(KeepKey<dynamic> key) async {
     memory.remove(key.storeName);
-    unawaited(saveMemory());
+    await saveMemory();
   }
 
-  /// Removes multiple entries from memory by their storage keys.
+  /// Removes a single entry by its storage key and awaits the disk flush.
   @override
   Future<void> removeKey(String storeName) async {
     memory.remove(storeName);
-    unawaited(saveMemory());
+    await saveMemory();
   }
 
-  /// Clears all entries from the internal storage.
+  /// Clears all entries from the internal storage and awaits the disk flush.
   @override
   Future<void> clear() async {
     memory.clear();
-    unawaited(saveMemory());
+    await saveMemory();
   }
 
-  /// Removes all entries marked as removable from memory.
+  /// Removes all entries marked as removable from memory and awaits the
+  /// disk flush.
   @override
   Future<void> clearRemovable() async {
     final keysToRemove = memory.keys
@@ -120,7 +135,7 @@ class KeepInternalStorage extends KeepStorage {
 
     if (keysToRemove.isNotEmpty) {
       keysToRemove.forEach(memory.remove);
-      unawaited(saveMemory());
+      await saveMemory();
     }
   }
 
@@ -234,8 +249,17 @@ class KeepInternalStorage extends KeepStorage {
     }
   }
 
+  /// Awaits any in-flight save without disposing the underlying queue.
+  @override
+  Future<void> flush() => _writer.flush();
+
+  /// Awaits any in-flight save before disposing the underlying queue.
+  ///
+  /// Without this flush, pending debounced saves would be cancelled and the
+  /// last in-memory mutations would never reach disk.
   @override
   Future<void> dispose() async {
+    await _writer.flush();
     _writer.dispose();
   }
 }

@@ -50,30 +50,27 @@ class DefaultKeepExternalStorage extends KeepStorage {
   }
 
   /// Asynchronously reads a file's content and decodes the payload.
+  ///
+  /// Reads intentionally bypass the [KeepWriteQueue] debounce mechanism:
+  /// participating in it would cause two rapid concurrent reads to cancel
+  /// each other and return `null`. Instead we wait for any in-flight write
+  /// for the same key to settle and then read the file directly. Atomicity
+  /// is provided by the OS-level rename in [atomicWrite].
   @override
   Future<V?> read<V>(KeepKey<dynamic> key) async {
     try {
-      return _writer.run<V?>(
-        id: key.storeName,
-        action: () async {
-          final file = getFile(key);
+      await _writer.awaitSettled(key.storeName);
 
-          if (!file.existsSync()) {
-            return null;
-          }
+      final file = getFile(key);
+      if (!file.existsSync()) {
+        return null;
+      }
 
-          final bytes = await file.readAsBytes();
-          final codec = KeepCodec.of(bytes);
-          final entry = codec.decode();
+      final bytes = await file.readAsBytes();
+      final codec = KeepCodec.of(bytes);
+      final entry = codec.decode();
 
-          if (entry == null) {
-            await file.delete();
-            _memory.remove(key.storeName);
-          }
-
-          return entry?.value as V?;
-        },
-      );
+      return entry?.value as V?;
     } on KeepException<dynamic> catch (error) {
       _keep.onError?.call(error);
       rethrow;
@@ -90,6 +87,10 @@ class DefaultKeepExternalStorage extends KeepStorage {
   }
 
   /// Synchronously reads a file's content and decodes the payload.
+  ///
+  /// This does not wait for in-flight async writes; if a debounced write is
+  /// pending for the same key, the returned value may be stale. Prefer
+  /// [read] when correctness is important.
   @override
   V? readSync<V>(KeepKey<dynamic> key) {
     final file = getFile(key);
@@ -101,11 +102,6 @@ class DefaultKeepExternalStorage extends KeepStorage {
     final bytes = file.readAsBytesSync();
     final codec = KeepCodec.of(bytes);
     final entry = codec.decode();
-
-    if (entry == null) {
-      file.deleteSync();
-      _memory.remove(key.storeName);
-    }
 
     return entry?.value as V?;
   }
@@ -386,8 +382,17 @@ class DefaultKeepExternalStorage extends KeepStorage {
     return list.map((e) => e.uri.pathSegments.last).toList();
   }
 
+  /// Awaits any in-flight write without disposing the underlying queue.
+  @override
+  Future<void> flush() => _writer.flush();
+
+  /// Awaits any in-flight write before disposing the underlying queue.
+  ///
+  /// Without this flush, pending debounced writes would be cancelled and the
+  /// last value never reaches disk.
   @override
   Future<void> dispose() async {
+    await _writer.flush();
     _writer.dispose();
   }
 }

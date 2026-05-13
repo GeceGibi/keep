@@ -173,16 +173,34 @@ abstract class KeepKey<T> with KeepCodecUtils {
     );
   }
 
+  /// Invalidates any in-memory cached value held by this key.
+  ///
+  /// Subclasses (e.g. [KeepKeyPlain], [KeepKeySecure]) override this to reset
+  /// their internal caches so that the next read consults the underlying
+  /// storage layer. Called automatically by [remove], [Keep.clear] and
+  /// [Keep.clearRemovable].
+  @internal
+  void invalidateCache() {}
+
   /// Atomically updates the value by reading the current value and writing
   /// the result of [updateFn].
   ///
-  /// This method ensures the update logic handles existing data appropriately.
+  /// Concurrent updates targeting the same key are serialized through the
+  /// owning [Keep] instance, preventing classic lost-update races where two
+  /// callers read the same value, compute independently, and overwrite each
+  /// other.
+  ///
+  /// Note: only `update` calls are serialized against each other. Direct
+  /// `write` calls do not participate in this lock; mixing the two on the
+  /// same key offers no atomicity guarantees.
   Future<void> update(T Function(T? currentValue) updateFn) async {
     try {
-      final currentValue = await read();
-      final newValue = updateFn(currentValue);
-      await write(newValue);
-    } on KeepException<T> {
+      await _keep.runSerialized<void>(storeName, () async {
+        final currentValue = await read();
+        final newValue = updateFn(currentValue);
+        await write(newValue);
+      });
+    } on KeepException<dynamic> {
       rethrow;
     } catch (error, stackTrace) {
       final exception = toException(
@@ -196,8 +214,9 @@ abstract class KeepKey<T> with KeepCodecUtils {
     }
   }
 
-  /// Removes this key and its associated value from both memory and disk.
-  Future<void> remove() async {
+  /// Internal removal that clears storage + cache but does NOT emit a change
+  /// event. Used by [remove] and by [write] when called with a `null` value.
+  Future<void> _removeInternal() async {
     await _keep.ensureInitialized;
 
     try {
@@ -206,6 +225,8 @@ abstract class KeepKey<T> with KeepCodecUtils {
       } else {
         await _keep.internalStorage.remove(this);
       }
+
+      invalidateCache();
 
       if (_parent != null) {
         await _parent!.keys._unregister(this);
@@ -221,6 +242,17 @@ abstract class KeepKey<T> with KeepCodecUtils {
 
       _keep.onError?.call(exception);
       throw exception;
+    }
+  }
+
+  /// Removes this key and its associated value from both memory and disk.
+  ///
+  /// Also invalidates the per-key value cache and emits a change event so
+  /// that active listeners (e.g. [KeepBuilder]) update their UI.
+  Future<void> remove() async {
+    await _removeInternal();
+    if (!_keep.onChangeController.isClosed) {
+      _keep.onChangeController.add(this);
     }
   }
 

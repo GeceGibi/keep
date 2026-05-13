@@ -136,8 +136,14 @@ class SubKeyManager<T> extends ChangeNotifier {
         if (header != null) {
           foundNames.add(header.name);
         }
-      } catch (_) {
-        // Ignore read errors for individual files
+      } catch (error, stackTrace) {
+        final exception = KeepException<T>(
+          'Failed to read sub-key header for $storeName',
+          error: error,
+          stackTrace: stackTrace,
+        );
+
+        _parent._keep.onError?.call(exception);
       }
     }
 
