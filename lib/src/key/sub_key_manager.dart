@@ -16,7 +16,7 @@ enum SubKeyEvent {
 ///
 /// Sub-keys are dynamically resolved from storage using the parent's prefix.
 class SubKeyManager<T> extends ChangeNotifier {
-  /// Creates a [SubKeyManager] for the given [parent] key.
+  /// Creates a [SubKeyManager] for the given parent key.
   SubKeyManager(this._parent);
   final KeepKey<T> _parent;
 
@@ -24,32 +24,58 @@ class SubKeyManager<T> extends ChangeNotifier {
   final _controller = StreamController<SubKeyEvent>.broadcast();
 
   /// In-memory registry of instantiated sub-keys (even if not yet written).
-  final _instantiatedKeys = <String>{};
+  final Map<String, KeepKey<T>> _instantiatedKeys = {};
 
   /// A stream of sub-key events (added, removed, cleared).
   Stream<SubKeyEvent> get stream => _controller.stream;
 
-  /// Registers a sub-key name synchronously.
+  /// Registers a sub-key instance synchronously.
   ///
   /// Tracks the key in memory even if it hasn't been written to storage yet.
-  Future<void> _register(KeepKey<T> key) async {
-    // Only notify if this is a new key
-    final wasAdded = _instantiatedKeys.add(key.name);
+  void _register(KeepKey<T> key) {
+    final isNew = !_instantiatedKeys.containsKey(key.name);
+    _instantiatedKeys[key.name] = key;
 
-    if (wasAdded) {
-      _controller.add(.added);
+    if (isNew) {
+      if (!_controller.isClosed) {
+        _controller.add(.added);
+      }
       notifyListeners();
     }
   }
 
   /// Removes a specific sub-key from the registry.
-  Future<void> _unregister(KeepKey<T> key) async {
-    final wasRemoved = _instantiatedKeys.remove(key.name);
+  void _unregister(KeepKey<T> key) {
+    final removed = _instantiatedKeys.remove(key.name);
 
-    if (wasRemoved) {
-      _controller.add(.removed);
+    if (removed != null) {
+      if (!_controller.isClosed) {
+        _controller.add(.removed);
+      }
       notifyListeners();
     }
+  }
+
+  /// Notifies active listeners of all instantiated sub-keys and clears the
+  /// in-memory sub-key registry.
+  @internal
+  void notifyAndClearInstantiated() {
+    if (_instantiatedKeys.isEmpty) return;
+
+    final subKeys = _instantiatedKeys.values.toList();
+    _instantiatedKeys.clear();
+
+    for (final subKey in subKeys) {
+      if (!_parent._keep.onChangeController.isClosed) {
+        _parent._keep.onChangeController.add(subKey);
+      }
+      subKey.keys.notifyAndClearInstantiated();
+    }
+
+    if (!_controller.isClosed) {
+      _controller.add(.cleared);
+    }
+    notifyListeners();
   }
 
   /// Clears all sub-keys associated with the parent key from memory and disk.
@@ -75,11 +101,19 @@ class SubKeyManager<T> extends ChangeNotifier {
             .map(_parent.externalStorage.removeKey),
       );
 
-      // 3. Clear in-memory registry
-      _instantiatedKeys.clear();
+      // 3. Invalidate shared value cache for all sub-keys under this prefix
+      _parent._keep.valueCache.removeWhere((k, _) => k.startsWith(prefix));
 
-      _controller.add(.cleared);
-      notifyListeners();
+      // 4. Clear in-memory registry and notify listeners
+      final hadInstantiated = _instantiatedKeys.isNotEmpty;
+      notifyAndClearInstantiated();
+
+      if (!hadInstantiated) {
+        if (!_controller.isClosed) {
+          _controller.add(.cleared);
+        }
+        notifyListeners();
+      }
     } catch (error, stackTrace) {
       final exception = KeepException<T>(
         'Failed to clear sub-keys',
@@ -103,7 +137,7 @@ class SubKeyManager<T> extends ChangeNotifier {
     final internalStorage = _parent._keep.internalStorage;
 
     // 1. Add instantiated keys (even if not written yet)
-    foundNames.addAll(_instantiatedKeys);
+    foundNames.addAll(_instantiatedKeys.keys);
 
     // 2. Scan Internal Memory
     for (final entry in internalStorage.memory.values) {
@@ -117,7 +151,7 @@ class SubKeyManager<T> extends ChangeNotifier {
       }
     }
 
-    // 2. Scan External Storage
+    // 3. Scan External Storage
     final externalKeys = await _parent.externalStorage.getKeys();
 
     for (final storeName in externalKeys) {
@@ -147,7 +181,7 @@ class SubKeyManager<T> extends ChangeNotifier {
       }
     }
 
-    // 3. Convert to KeepKey list
+    // 4. Convert to KeepKey list
     final result = <KeepKey<T>>[];
     for (final name in foundNames) {
       result.add(_parent.call(name));

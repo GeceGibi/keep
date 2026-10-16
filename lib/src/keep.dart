@@ -107,7 +107,10 @@ class Keep with KeepCodecUtils {
   @protected
   Future<void> get ensureInitialized => _initCompleter.future;
 
-  /// The registry of all [KeepKey] created for this keep.
+  /// Whether [init] has completed successfully.
+  @internal
+  bool get isInitialized => _initCompleter.isCompleted;
+
   /// The internal registry of all [KeepKey] instances managed by this [Keep].
   final Map<String, KeepKey<dynamic>> _registry = {};
 
@@ -239,6 +242,8 @@ class Keep with KeepCodecUtils {
     bool useExternal = false,
     KeepStorage? storage,
     bool? Function(Object? value)? fromStorage,
+    // Callback signature takes the typed value positionally.
+    // ignore: avoid_positional_boolean_parameters
     Object? Function(bool value)? toStorage,
   }) {
     return _register(
@@ -260,6 +265,8 @@ class Keep with KeepCodecUtils {
     bool useExternal = false,
     KeepStorage? storage,
     bool? Function(Object? value)? fromStorage,
+    // Callback signature takes the typed value positionally.
+    // ignore: avoid_positional_boolean_parameters
     Object? Function(bool value)? toStorage,
   }) {
     return _register(
@@ -454,11 +461,12 @@ class Keep with KeepCodecUtils {
             return fromStorage(v);
           }
 
+          if (v is Uint8List) return v;
           if (v is String) return base64Decode(v);
           if (v is List) return Uint8List.fromList(v.cast<int>());
           return null;
         },
-        toStorage: toStorage ?? base64Encode,
+        toStorage: toStorage,
       ),
     );
   }
@@ -484,6 +492,7 @@ class Keep with KeepCodecUtils {
             return fromStorage(v);
           }
 
+          if (v is Uint8List) return v;
           if (v is String) return base64Decode(v);
           if (v is List) return Uint8List.fromList(v.cast<int>());
           return null;
@@ -536,7 +545,8 @@ class Keep with KeepCodecUtils {
 
   var _isInitializing = false;
 
-  /// Initializes the keep by creating directories and starting storage adapters.
+  /// Initializes the keep by creating directories and starting storage
+  /// adapters.
   ///
   /// [path] specifies the base directory. Defaults to app support directory.
   /// Folder name is automatically derived from the class name hash.
@@ -548,7 +558,8 @@ class Keep with KeepCodecUtils {
   @mustCallSuper
   Future<void> init({String? path}) async {
     if (_initCompleter.isCompleted || _isInitializing) {
-      return _initCompleter.future;
+      await _initCompleter.future;
+      return;
     }
 
     _isInitializing = true;
@@ -615,7 +626,8 @@ class Keep with KeepCodecUtils {
   Future<R> runSerialized<R>(String id, Future<R> Function() action) async {
     final previous = _serialLocks[id];
     final completer = Completer<void>();
-    _serialLocks[id] = completer.future;
+    final currentLock = completer.future;
+    _serialLocks[id] = currentLock;
 
     try {
       if (previous != null) {
@@ -625,13 +637,14 @@ class Keep with KeepCodecUtils {
     } finally {
       completer.complete();
       // Only clear the slot if no later caller has replaced it.
-      if (identical(_serialLocks[id], completer.future)) {
-        _serialLocks.remove(id);
+      if (identical(_serialLocks[id], currentLock)) {
+        unawaited(_serialLocks.remove(id));
       }
     }
   }
 
-  /// Returns a snapshot of all keys currently stored in the internal (memory) storage.
+  /// Returns a snapshot of all keys currently stored in the internal
+  /// (memory) storage.
   List<KeepKey<dynamic>> get keys {
     return List.unmodifiable(_registry.entries.map((k) => k.value).toList());
   }
@@ -648,13 +661,17 @@ class Keep with KeepCodecUtils {
 
   /// Removes all keys marked as `removable: true` from the keep.
   ///
-  /// This operation performs a **storage-level cleanup** by scanning both internal memory
-  /// and external files for entries with the **Removable Flag** set.
+  /// This operation performs a **storage-level cleanup** by scanning both
+  /// internal memory and external files for entries with the
+  /// **Removable Flag** set.
   ///
   /// Unlike manually iterating over keys, this method:
-  /// 1. **Handles Lazy Keys:** Deletes removable data even if the key objects haven't been accessed/initialized.
-  /// 2. **Is Efficient:** Uses binary headers/flags to identify targets without full data parsing.
-  /// 3. **Syncs State:** Updates internal memory state and notifies active listeners.
+  /// 1. **Handles Lazy Keys:** Deletes removable data even if the key objects
+  ///    haven't been accessed/initialized.
+  /// 2. **Is Efficient:** Uses binary headers/flags to identify targets
+  ///    without full data parsing.
+  /// 3. **Syncs State:** Updates internal memory state and notifies active
+  ///    listeners.
   Future<void> clearRemovable() async {
     await ensureInitialized;
 
@@ -671,12 +688,13 @@ class Keep with KeepCodecUtils {
     // re-cached) from storage on next access.
     valueCache.clear();
 
-    // Notify currently registered removable keys that their data has been
-    // cleared so any UI listening to these keys updates.
+    // Notify currently registered removable keys (and their sub-keys) that
+    // their data has been cleared so any UI listening to these keys updates.
     for (final key in removableKeys) {
       if (!onChangeController.isClosed) {
         onChangeController.add(key);
       }
+      key.keys.notifyAndClearInstantiated();
     }
   }
 
@@ -696,11 +714,12 @@ class Keep with KeepCodecUtils {
     // [_registry] — stops returning stale, pre-clear values.
     valueCache.clear();
 
-    // Notify listeners for all known (registered) keys.
+    // Notify listeners for all known (registered) keys and their sub-keys.
     for (final key in _registry.values) {
       if (!onChangeController.isClosed) {
         onChangeController.add(key);
       }
+      key.keys.notifyAndClearInstantiated();
     }
   }
 
@@ -719,10 +738,7 @@ class Keep with KeepCodecUtils {
   ///    consistent point.
   Future<void> flush() async {
     await ensureInitialized;
-    await Future.wait([
-      internalStorage.flush(),
-      externalStorage.flush(),
-    ]);
+    await Future.wait([internalStorage.flush(), externalStorage.flush()]);
   }
 
   /// Disposes resources held by this [Keep] instance.

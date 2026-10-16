@@ -14,7 +14,8 @@ part 'codec_v2.dart';
 /// Abstract base class for version-based data migration.
 ///
 /// Each [KeepCodec] represents a specific storage format version and
-/// provides methods to encode data to that version and decode data from that version.
+/// provides methods to encode data to that version and decode data from that
+/// version.
 abstract class KeepCodec with KeepCodecUtils {
   /// The version number this codec handles.
   int get version;

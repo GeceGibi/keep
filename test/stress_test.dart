@@ -159,6 +159,9 @@ void main() {
       'External Secure Read: $secExtReadOps ops/sec (${secExtReadStart.elapsedMilliseconds}ms)',
     );
 
-    await Future<void>.delayed(const Duration(seconds: 1));
+    await keep.dispose();
+    if (dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
   });
 }

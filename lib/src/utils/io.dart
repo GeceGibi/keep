@@ -1,7 +1,7 @@
 part of 'utils.dart';
 
-/// Performs an atomic write by writing to a temporary file and then renaming it.
-/// This helps prevent data corruption during power failures or crashes.
+/// Performs an atomic write by writing to a temporary file and then renaming
+/// it. This helps prevent data corruption during power failures or crashes.
 @internal
 Future<void> atomicWrite(File file, Uint8List bytes) async {
   final targetPath = file.path;

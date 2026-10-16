@@ -201,8 +201,7 @@ void main() {
   });
 
   group('Bug fixes', () {
-    test('Bug #1: remove() invalidates cache and emits change event',
-        () async {
+    test('Bug #1: remove() invalidates cache and emits change event', () async {
       await storage.counter.write(42);
       expect(storage.counter.readSync(), 42);
 
@@ -266,8 +265,7 @@ void main() {
       expect(value, startsWith('v'));
     });
 
-    test('Bug #6: concurrent update() calls do not lose increments',
-        () async {
+    test('Bug #6: concurrent update() calls do not lose increments', () async {
       await storage.counter.write(0);
 
       const concurrency = 25;
@@ -287,59 +285,62 @@ void main() {
       );
     });
 
-    test('Bug #15/#27: await write() is durable after dispose+reopen',
-        () async {
-      // Write to internal storage and dispose immediately. After a fresh
-      // Keep instance reopens the same directory, the value must survive.
-      await storage.counter.write(12345);
-      await storage.username.write('persisted');
-      await storage.dispose();
+    test(
+      'Bug #15/#27: await write() is durable after dispose+reopen',
+      () async {
+        // Write to internal storage and dispose immediately. After a fresh
+        // Keep instance reopens the same directory, the value must survive.
+        await storage.counter.write(12345);
+        await storage.username.write('persisted');
+        await storage.dispose();
 
-      final reopened = TestKeep();
-      await reopened.init(path: tempDir.path);
+        final reopened = TestKeep();
+        await reopened.init(path: tempDir.path);
 
-      expect(
-        await reopened.counter.read(),
-        12345,
-        reason:
-            'await write() must guarantee disk durability before returning, '
-            'so the value survives dispose() and a fresh init().',
-      );
-      expect(await reopened.username.read(), 'persisted');
+        expect(
+          await reopened.counter.read(),
+          12345,
+          reason:
+              'await write() must guarantee disk durability before returning, '
+              'so the value survives dispose() and a fresh init().',
+        );
+        expect(await reopened.username.read(), 'persisted');
 
-      await reopened.dispose();
-    });
+        await reopened.dispose();
+      },
+    );
 
     test(
-        'Bug #28: supersede chain — every awaiter sees a durable post-state',
-        () async {
-      // Many rapid writes against the same internal key are debounced into
-      // ideally a single disk flush, but the await of EVERY caller must
-      // resolve only after that flush has happened. Following each individual
-      // await with a fresh Keep instance verifies durability.
-      final futures = <Future<void>>[];
-      for (var i = 0; i < 20; i++) {
-        futures.add(storage.counter.write(i));
-      }
-      await Future.wait(futures);
+      'Bug #28: supersede chain — every awaiter sees a durable post-state',
+      () async {
+        // Many rapid writes against the same internal key are debounced into
+        // ideally a single disk flush, but the await of EVERY caller must
+        // resolve only after that flush has happened. Following each individual
+        // await with a fresh Keep instance verifies durability.
+        final futures = <Future<void>>[];
+        for (var i = 0; i < 20; i++) {
+          futures.add(storage.counter.write(i));
+        }
+        await Future.wait(futures);
 
-      // The in-memory state should match the LAST write (final loser).
-      expect(await storage.counter.read(), 19);
+        // The in-memory state should match the LAST write (final loser).
+        expect(await storage.counter.read(), 19);
 
-      // Crucially, that value must be on disk — verify by reopening.
-      await storage.dispose();
+        // Crucially, that value must be on disk — verify by reopening.
+        await storage.dispose();
 
-      final reopened = TestKeep();
-      await reopened.init(path: tempDir.path);
-      expect(
-        await reopened.counter.read(),
-        19,
-        reason:
-            'All callers awaiting a debounced write must observe the final '
-            'durable state once their await resolves.',
-      );
-      await reopened.dispose();
-    });
+        final reopened = TestKeep();
+        await reopened.init(path: tempDir.path);
+        expect(
+          await reopened.counter.read(),
+          19,
+          reason:
+              'All callers awaiting a debounced write must observe the final '
+              'durable state once their await resolves.',
+        );
+        await reopened.dispose();
+      },
+    );
 
     test('Keep.flush(): explicit drain of unawaited writes', () async {
       // Issue several fire-and-forget writes, then ensure flush() makes them
@@ -359,37 +360,79 @@ void main() {
       await reopened.dispose();
     });
 
-    test('Bug #5: init() failure surfaces via Future error (no hang)',
-        () async {
-      final broken = TestKeep();
-      // Path under a read-only root that cannot be created.
-      const badPath = '/dev/null/keep_broken_dir';
+    test(
+      'Bug #5: init() failure surfaces via Future error (no hang)',
+      () async {
+        final broken = TestKeep();
+        // Path under a read-only root that cannot be created.
+        const badPath = '/dev/null/keep_broken_dir';
 
-      var caught = false;
-      try {
-        // Run with a timeout so a hang would visibly fail this test.
-        await broken
-            .init(path: badPath)
-            .timeout(const Duration(seconds: 3));
-      } catch (_) {
-        caught = true;
-      }
-      expect(
-        caught,
-        isTrue,
-        reason: 'A broken init must throw, not hang forever.',
-      );
+        var caught = false;
+        try {
+          // Run with a timeout so a hang would visibly fail this test.
+          await broken.init(path: badPath).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          caught = true;
+        }
+        expect(
+          caught,
+          isTrue,
+          reason: 'A broken init must throw, not hang forever.',
+        );
 
-      // Subsequent awaits of ensureInitialized must also fail-fast.
-      var rethrown = false;
-      try {
-        await broken
-            .init(path: badPath)
-            .timeout(const Duration(seconds: 3));
-      } catch (_) {
-        rethrown = true;
-      }
-      expect(rethrown, isTrue);
+        // Subsequent awaits of ensureInitialized must also fail-fast.
+        var rethrown = false;
+        try {
+          await broken.init(path: badPath).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          rethrown = true;
+        }
+        expect(rethrown, isTrue);
+      },
+    );
+
+    test('UTF-8 and Turkish characters in SimpleKeepEncrypter', () async {
+      const value = 'Şifre: ğüşıöç ĞÜŞİÖÇ 🚀';
+      await storage.secureToken.write(value);
+      expect(storage.secureToken.readSync(), value);
+
+      storage.secureToken.invalidateCache();
+      expect(await storage.secureToken.read(), value);
+      expect(storage.secureToken.readSync(), value);
     });
+
+    test('readSync before init does not poison valueCache with null', () async {
+      await storage.counter.write(777);
+      await storage.dispose();
+
+      final fresh = TestKeep();
+      // Call readSync BEFORE init completes (simulating KeepBuilder._attach)
+      expect(fresh.counter.readSync(), isNull);
+
+      await fresh.init(path: tempDir.path);
+      expect(await fresh.counter.read(), 777);
+      expect(fresh.counter.readSync(), 777);
+      await fresh.dispose();
+    });
+
+    test(
+      'SubKeyManager.clear invalidates sub-key cache and notifies',
+      () async {
+        final sub = storage.username('profile_1');
+        await sub.write('Ali');
+        expect(sub.readSync(), 'Ali');
+
+        var notified = false;
+        final subscription = sub.stream.listen((_) => notified = true);
+
+        await storage.username.keys.clear();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await subscription.cancel();
+
+        expect(sub.readSync(), isNull);
+        expect(await sub.read(), isNull);
+        expect(notified, isTrue);
+      },
+    );
   });
 }

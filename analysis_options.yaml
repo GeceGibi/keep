@@ -6,4 +6,6 @@ analyzer:
   errors:
     invalid_use_of_protected_member: ignore
     avoid_catches_without_on_clauses: ignore
+  exclude:
+    - build/**
 

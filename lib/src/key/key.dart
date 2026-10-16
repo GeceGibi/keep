@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:keep/keep.dart' show KeepEncrypter;
 import 'package:keep/src/encrypter/encrypter.dart' show KeepEncrypter;
 import 'package:keep/src/keep.dart';
 import 'package:keep/src/storage/storage.dart';
@@ -22,7 +21,8 @@ part 'sub_key_manager.dart';
 /// data is handled (e.g., plain JSON or encrypted).
 abstract class KeepKey<T> with KeepCodecUtils {
   /// [name] is the unique identifier for this key.
-  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [removable] indicates if the key should be cleared by
+  /// [Keep.clearRemovable].
   /// [useExternal] indicates if the value should be stored in its own file.
   /// [storage] is an optional custom storage adapter for this specific key.
   KeepKey({
@@ -36,7 +36,8 @@ abstract class KeepKey<T> with KeepCodecUtils {
   /// Defaults to true if a custom [storage] is provided.
   final bool useExternal;
 
-  /// The custom storage adapter for this key. Fallbacks to [Keep.externalStorage].
+  /// The custom storage adapter for this key.
+  /// Fallbacks to [Keep.externalStorage].
   final KeepStorage? storage;
 
   /// The parent key, if this is a sub-key.
@@ -94,7 +95,8 @@ abstract class KeepKey<T> with KeepCodecUtils {
   /// is fully initialized before the read operation begins.
   Future<T?> read();
 
-  /// Reads the value and returns [defaultValue] if the key does not exist or an error occurs.
+  /// Reads the value and returns [defaultValue] if the key does not exist or
+  /// an error occurs.
   Future<T> readSafe(T defaultValue) async {
     return (await read()) ?? defaultValue;
   }
@@ -119,18 +121,14 @@ abstract class KeepKey<T> with KeepCodecUtils {
 
     try {
       if (useExternal) {
-        return externalStorage.exists(this);
+        return await externalStorage.exists(this);
       }
 
-      return _keep.internalStorage.exists(this);
+      return await _keep.internalStorage.exists(this);
     } on KeepException<dynamic> {
       rethrow;
     } catch (e, s) {
-      final exception = toException(
-        e.toString(),
-        error: e,
-        stackTrace: s,
-      );
+      final exception = toException(e.toString(), error: e, stackTrace: s);
 
       _keep.onError?.call(exception);
       throw exception;
@@ -150,11 +148,7 @@ abstract class KeepKey<T> with KeepCodecUtils {
     } on KeepException<dynamic> {
       rethrow;
     } catch (e, s) {
-      final exception = toException(
-        e.toString(),
-        error: e,
-        stackTrace: s,
-      );
+      final exception = toException(e.toString(), error: e, stackTrace: s);
 
       _keep.onError?.call(exception);
       throw exception;
@@ -236,16 +230,12 @@ abstract class KeepKey<T> with KeepCodecUtils {
       invalidateCache();
 
       if (_parent != null) {
-        await _parent!.keys._unregister(this);
+        _parent!.keys._unregister(this);
       }
     } on KeepException<dynamic> {
       rethrow;
     } catch (e, s) {
-      final exception = toException(
-        e.toString(),
-        error: e,
-        stackTrace: s,
-      );
+      final exception = toException(e.toString(), error: e, stackTrace: s);
 
       _keep.onError?.call(exception);
       throw exception;
@@ -272,6 +262,7 @@ abstract class KeepKey<T> with KeepCodecUtils {
 
   @override
   String toString() {
-    return 'KeepKey<$T>(name: $name, external: $useExternal, removable: $removable)';
+    return 'KeepKey<$T>('
+        'name: $name, external: $useExternal, removable: $removable)';
   }
 }

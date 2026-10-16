@@ -12,7 +12,8 @@ class DefaultKeepExternalStorage extends KeepStorage {
 
   final Map<String, KeepKeyHeader> _memory = {};
 
-  /// Initializes the external storage by ensuring the 'external' directory exists.
+  /// Initializes the external storage by ensuring the 'external' directory
+  /// exists.
   @override
   Future<void> init(Keep keep) async {
     try {
@@ -106,7 +107,8 @@ class DefaultKeepExternalStorage extends KeepStorage {
     return entry?.value as V?;
   }
 
-  /// Writes a value to an external file using a temporary file for atomic updates.
+  /// Writes a value to an external file using a temporary file for atomic
+  /// updates.
   @override
   Future<void> write(KeepKey<dynamic> key, Object? value) async {
     try {
@@ -181,6 +183,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
   @override
   Future<bool> exists(KeepKey<dynamic> key) async {
     try {
+      await _writer.awaitSettled(key.storeName);
       return _memory.containsKey(key.storeName);
     } on KeepException<dynamic> catch (e) {
       _keep.onError?.call(e);
@@ -287,7 +290,7 @@ class DefaultKeepExternalStorage extends KeepStorage {
           final file = File('${_root.path}/$name');
 
           try {
-            if (await file.exists()) {
+            if (file.existsSync()) {
               await file.delete();
             }
 

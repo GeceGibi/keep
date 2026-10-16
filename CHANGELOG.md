@@ -1,3 +1,48 @@
+## 1.1.0
+
+This release fixes UTF-8 encryption issues, pre-init cache poisoning, sub-key
+reactivity edge cases, and includes several performance optimizations.
+
+### Encryption & Encoding
+
+- **Bug Fix:** `SimpleKeepEncrypter` now encodes and decodes strings as UTF-8
+  bytes before XOR and Base64 operations. Previously, operating on 16-bit
+  UTF-16 code units truncated the upper byte of non-ASCII characters (e.g.
+  Turkish characters, emojis), causing data corruption or `FormatException`
+  during JSON decoding.
+- **Improvement:** `Keep.kBytes` now stores raw `Uint8List` directly in Codec V2
+  (`StandardMessageCodec`) instead of Base64-encoding by default, preserving
+  the `KeepType.tBytes` header type and eliminating the 33% Base64 size
+  overhead while remaining backward-compatible with existing Base64 strings.
+
+### Reactivity & Caching
+
+- **Bug Fix:** `KeepKeyPlain.readSync()` and `KeepKeySecure.readSync()` no
+  longer write `null` into `Keep.valueCache` when called before `Keep.init()`
+  completes (such as during `KeepBuilder`'s initial synchronous read).
+  Previously, this poisoned the cache with `null` and caused subsequent
+  `await read()` calls to ignore persisted data on disk.
+- **Bug Fix:** `SubKeyManager.clear()` now invalidates all matching sub-key
+  entries in `Keep.valueCache` and notifies active sub-key listeners.
+- **Bug Fix:** `Keep.clear()` and `Keep.clearRemovable()` now also notify
+  instantiated sub-keys and clear their in-memory sub-key registries so
+  `KeepBuilder` widgets listening to sub-keys update immediately.
+- **Bug Fix:** `KeepBuilder.didUpdateWidget` now compares `storeName` in
+  addition to object identity, preventing unnecessary stream re-subscriptions
+  on parent rebuilds when inline sub-keys (`parent('sub')`) are passed.
+
+### Storage & Performance
+
+- **Bug Fix:** `KeepKey.exists` now properly awaits storage futures inside its
+  `try` block so asynchronous errors are caught and routed through
+  `Keep.onError`.
+- **Bug Fix:** `DefaultKeepExternalStorage.exists` now awaits
+  `_writer.awaitSettled` before checking in-memory headers, preventing stale
+  results while a write or removal is in flight.
+- **Performance:** `KeepKeySecure` now only offloads `jsonEncode` / `jsonDecode`
+  to a background isolate (`compute`) for large payloads (> 10 KB), avoiding
+  isolate spawn overhead on small values.
+
 ## 1.0.1
 
 This release fixes a reactivity/data-integrity bug affecting **dynamic sub-keys**

@@ -28,11 +28,11 @@ class SimpleKeepEncrypter extends KeepEncrypter {
 
   @override
   String encryptSync(String data) {
-    final result = <int>[];
-    for (var i = 0; i < data.length; i++) {
-      result.add(
-        data.codeUnitAt(i) ^ secureKey.codeUnitAt(i % secureKey.length),
-      );
+    final dataBytes = utf8.encode(data);
+    final keyBytes = utf8.encode(secureKey);
+    final result = Uint8List(dataBytes.length);
+    for (var i = 0; i < dataBytes.length; i++) {
+      result[i] = dataBytes[i] ^ keyBytes[i % keyBytes.length];
     }
     return base64Encode(result);
   }
@@ -43,10 +43,11 @@ class SimpleKeepEncrypter extends KeepEncrypter {
   @override
   String decryptSync(String data) {
     final bytes = base64Decode(data);
-    final result = <int>[];
+    final keyBytes = utf8.encode(secureKey);
+    final result = Uint8List(bytes.length);
     for (var i = 0; i < bytes.length; i++) {
-      result.add(bytes[i] ^ secureKey.codeUnitAt(i % secureKey.length));
+      result[i] = bytes[i] ^ keyBytes[i % keyBytes.length];
     }
-    return String.fromCharCodes(result);
+    return utf8.decode(result);
   }
 }

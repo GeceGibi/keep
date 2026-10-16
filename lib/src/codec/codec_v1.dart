@@ -6,7 +6,7 @@ final _keepCodecV1 = KeepCodecV1._();
 /// Version 1 codec - the baseline Keep storage format.
 ///
 /// **Binary Format:**
-/// ```
+/// ```text
 /// [Version(1)][Flags(1)][Type(1)][StoreNameLen(1)][NameLen(1)]
 /// [StoreNameBytes(N)][NameBytes(N)][JSON(N)]
 /// ```

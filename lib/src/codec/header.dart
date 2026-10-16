@@ -1,17 +1,20 @@
 part of 'codec.dart';
 
-/// Represents a value stored in the keep along with its associated metadata flags.
+/// Represents a value stored in the keep along with its associated metadata
+/// flags.
 ///
-/// This class serves as the fundamental data container for storing and retrieving
-/// information within the Keep system. It encapsulates both the raw data payload
-/// and bitwise flags that define the data's behavior (e.g., persistence strategies).
+/// This class serves as the fundamental data container for storing and
+/// retrieving information within the Keep system. It encapsulates both the raw
+/// data payload and bitwise flags that define the data's behavior (e.g.,
+/// persistence strategies).
 ///
-/// Instances of [KeepInternalValue] are immutable and are used during:
+/// Instances of [KeepKeyHeader] are immutable and are used during:
 /// - In-memory storage (Internal Keep)
 /// - Binary serialization (External Keep)
 @immutable
 class KeepKeyHeader {
-  /// Creates a new keep entry with the given [value], [flags], optional [version] and [type].
+  /// Creates a new keep entry header with the given [flags], [name],
+  /// [storeName], [version] and optional [type].
   const KeepKeyHeader({
     required this.flags,
     required this.name,
@@ -43,7 +46,8 @@ class KeepKeyHeader {
 
   @override
   String toString() =>
-      'KeepInternalValue(name: $name, flags: $flags, type: $type, isRemovable: $isRemovable, isSecure: $isSecure)';
+      'KeepKeyHeader(name: $name, flags: $flags, type: $type, '
+      'isRemovable: $isRemovable, isSecure: $isSecure)';
 
   @override
   bool operator ==(Object other) {

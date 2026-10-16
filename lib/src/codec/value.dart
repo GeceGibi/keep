@@ -5,7 +5,8 @@ part of 'codec.dart';
 /// Extends [KeepKeyHeader] to include the actual deserialized value data.
 /// Used internally for storing and transferring decoded entries.
 class KeepKeyValue extends KeepKeyHeader {
-  /// Creates a new keep entry with the given [value], [flags], optional [version] and [type].
+  /// Creates a new keep entry with the given [value], [flags], [version] and
+  /// [type].
   const KeepKeyValue({
     required this.value,
     required super.name,
@@ -15,7 +16,8 @@ class KeepKeyValue extends KeepKeyHeader {
     required super.storeName,
   });
 
-  /// Parses a [KeepKeyValue] from raw bytes, automatically detecting codec version.
+  /// Parses a [KeepKeyValue] from raw bytes, automatically detecting codec
+  /// version.
   static KeepKeyValue? fromBytes(Uint8List bytes) {
     return KeepCodec.of(bytes).decode();
   }

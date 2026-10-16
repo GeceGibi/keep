@@ -12,7 +12,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
   /// [name] is the unique identifier for this key.
   /// [fromStorage] maps the decrypted JSON object back to type [T].
   /// [toStorage] maps type [T] to a JSON-encodable object.
-  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [removable] indicates if the key should be cleared by
+  /// [Keep.clearRemovable].
   /// [useExternal] indicates if the value should be stored in its own file.
   /// [storage] is an optional custom storage adapter for this specific key.
   KeepKeySecure({
@@ -23,6 +24,8 @@ class KeepKeySecure<T> extends KeepKey<T> {
     super.useExternal,
     super.storage,
   });
+
+  static const int _isolateThreshold = 10 * 1024;
 
   /// Creates a sub-key by appending [subKeyName] to the current [name].
   @override
@@ -39,7 +42,7 @@ class KeepKeySecure<T> extends KeepKey<T> {
           ..bind(_keep)
           .._parent = this;
 
-    unawaited(keys._register(key));
+    keys._register(key);
     return key;
   }
 
@@ -53,6 +56,10 @@ class KeepKeySecure<T> extends KeepKey<T> {
   T? readSync() {
     if (_keep.valueCache.containsKey(storeName)) {
       return _keep.valueCache[storeName] as T?;
+    }
+
+    if (!_keep.isInitialized) {
+      return null;
     }
 
     try {
@@ -105,7 +112,9 @@ class KeepKeySecure<T> extends KeepKey<T> {
       }
 
       final decrypted = await _keep.encrypter.decrypt(encrypted);
-      final decoded = await compute(jsonDecode, decrypted);
+      final decoded = decrypted.length > _isolateThreshold
+          ? await compute(jsonDecode, decrypted)
+          : jsonDecode(decrypted);
 
       final value = fromStorage(decoded);
       _keep.valueCache[storeName] = value;
@@ -134,10 +143,16 @@ class KeepKeySecure<T> extends KeepKey<T> {
     } else {
       try {
         final payload = toStorage(value);
+        final shouldOffload =
+            (payload is String && payload.length > _isolateThreshold) ||
+            (payload is List && payload.length > 500) ||
+            (payload is Map && payload.length > 500);
 
-        final encrypted = await _keep.encrypter.encrypt(
-          await compute(jsonEncode, payload),
-        );
+        final encodedJson = shouldOffload
+            ? await compute(jsonEncode, payload)
+            : jsonEncode(payload);
+
+        final encrypted = await _keep.encrypter.encrypt(encodedJson);
 
         if (useExternal) {
           await externalStorage.write(this, encrypted);

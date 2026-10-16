@@ -3,10 +3,10 @@ part of 'utils.dart';
 /// A helper to manage debounced and queued side-effect operations (like
 /// writes).
 ///
-/// This class ensures that operations with the same [id] are:
+/// This class ensures that operations with the same `id` are:
 /// 1. **Debounced** — Rapid successive calls cancel previous pending timers so
 ///    only the latest action's body executes against disk.
-/// 2. **Queued** — Operations execute sequentially per [id], waiting for any
+/// 2. **Queued** — Operations execute sequentially per `id`, waiting for any
 ///    in-flight previous operation to complete before starting.
 /// 3. **Durable for awaiters** — When a pending call is superseded by a newer
 ///    one (debounced), the original caller's future is NOT silently completed
@@ -16,15 +16,15 @@ part of 'utils.dart';
 ///    underlying data is persistent.
 @internal
 class KeepWriteQueue {
-  /// Currently scheduled (timer not yet fired) operations, keyed by [id].
+  /// Currently scheduled (timer not yet fired) operations, keyed by `id`.
   final Map<String, _PendingOp<dynamic>> _pendingOps = {};
 
-  /// In-flight operations whose action is currently running, keyed by [id].
+  /// In-flight operations whose action is currently running, keyed by `id`.
   final Map<String, Future<dynamic>> _activeOperations = {};
 
   /// Completers from operations that were superseded by a newer pending op for
-  /// the same [id]. They are resolved (with the same result/error) when the
-  /// next successor for that [id] finishes executing, so awaiters see durable
+  /// the same `id`. They are resolved (with the same result/error) when the
+  /// next successor for that `id` finishes executing, so awaiters see durable
   /// completion instead of a phantom `null`.
   final Map<String, List<Completer<dynamic>>> _supersededCompleters = {};
 
@@ -93,7 +93,8 @@ class KeepWriteQueue {
     }
 
     final currentOperationCompleter = Completer<T>();
-    _activeOperations[id] = currentOperationCompleter.future;
+    final currentFuture = currentOperationCompleter.future;
+    _activeOperations[id] = currentFuture;
 
     try {
       final result = await action();
@@ -131,8 +132,8 @@ class KeepWriteQueue {
         completer.completeError(exception, stackTrace);
       }
     } finally {
-      if (identical(_activeOperations[id], currentOperationCompleter.future)) {
-        _activeOperations.remove(id);
+      if (identical(_activeOperations[id], currentFuture)) {
+        unawaited(_activeOperations.remove(id));
       }
     }
   }
@@ -188,7 +189,7 @@ class KeepWriteQueue {
     }
   }
 
-  /// Awaits ALL outstanding operations across every [id] to settle without
+  /// Awaits ALL outstanding operations across every `id` to settle without
   /// cancelling anything.
   ///
   /// This is the safe way to ensure durability before tearing down: call
@@ -202,8 +203,7 @@ class KeepWriteQueue {
         for (final f in _activeOperations.values.toList())
           f.then<void>((_) {}, onError: (Object _) {}),
         for (final op in _pendingOps.values.toList())
-          op.completer.future
-              .then<void>((_) {}, onError: (Object _) {}),
+          op.completer.future.then<void>((_) {}, onError: (Object _) {}),
       ];
       if (futures.isEmpty) break;
       await Future.wait(futures);
@@ -253,8 +253,8 @@ class _PendingOp<T> {
   final Timer timer;
 
   /// The future surfaced to the caller of [KeepWriteQueue.run]. May be
-  /// completed by either the op's own [_executeQueued] invocation or, when
-  /// superseded, by [KeepWriteQueue._resolveSuperseded] using a later op's
+  /// completed by either the op's own `_executeQueued` invocation or, when
+  /// superseded, by `KeepWriteQueue._resolveSuperseded` using a later op's
   /// outcome.
   final Completer<T> completer;
 }

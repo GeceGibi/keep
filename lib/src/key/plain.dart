@@ -9,7 +9,8 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   /// Creates a [KeepKeyPlain].
   ///
   /// [name] is the unique identifier for this key.
-  /// [removable] indicates if the key should be cleared by [Keep.clearRemovable].
+  /// [removable] indicates if the key should be cleared by
+  /// [Keep.clearRemovable].
   /// [useExternal] indicates if the value should be stored in its own file.
   /// [storage] is an optional custom storage adapter for this specific key.
   KeepKeyPlain({
@@ -41,7 +42,7 @@ class KeepKeyPlain<T> extends KeepKey<T> {
           ..bind(_keep)
           .._parent = this;
 
-    unawaited(keys._register(key));
+    keys._register(key);
     return key;
   }
 
@@ -49,6 +50,10 @@ class KeepKeyPlain<T> extends KeepKey<T> {
   T? readSync() {
     if (_keep.valueCache.containsKey(storeName)) {
       return _keep.valueCache[storeName] as T?;
+    }
+
+    if (!_keep.isInitialized) {
+      return null;
     }
 
     try {

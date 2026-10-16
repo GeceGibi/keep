@@ -6,7 +6,7 @@ final _keepCodecV2 = KeepCodecV2._();
 /// Version 2 codec - StandardMessageCodec-based binary format.
 ///
 /// **Binary Format:**
-/// ```
+/// ```text
 /// [Version(1)][Flags(1)][Type(1)][StoreNameLen(1)][NameLen(1)]
 /// [StoreNameBytes(N)][NameBytes(N)][StandardMessageCodec(N)]
 /// ```

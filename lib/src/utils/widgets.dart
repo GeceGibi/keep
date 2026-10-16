@@ -11,11 +11,7 @@ class KeepBuilder<T> extends StatefulWidget {
   ///
   /// [keepKey] The key to listen to.
   /// [builder] Callback that receives the latest value and returns a widget.
-  const KeepBuilder({
-    required this.keepKey,
-    required this.builder,
-    super.key,
-  });
+  const KeepBuilder({required this.keepKey, required this.builder, super.key});
 
   /// The keep key to monitor for changes.
   final KeepKey<T> keepKey;
@@ -46,12 +42,12 @@ class _KeepBuilderState<T> extends State<KeepBuilder<T>> {
       _value = null;
     }
 
-    _sub?.cancel();
+    unawaited(_sub?.cancel());
     _sub = widget.keepKey.stream.listen((_) => _load());
 
     // Always kick off an async read; this also covers the case where the
     // owning Keep instance has not finished initializing yet.
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {
@@ -76,14 +72,15 @@ class _KeepBuilderState<T> extends State<KeepBuilder<T>> {
   @override
   void didUpdateWidget(covariant KeepBuilder<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.keepKey, widget.keepKey)) {
+    if (!identical(oldWidget.keepKey, widget.keepKey) &&
+        oldWidget.keepKey.storeName != widget.keepKey.storeName) {
       _attach();
     }
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
+    unawaited(_sub?.cancel());
     super.dispose();
   }
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:keep/keep.dart' show KeepKey;
+import 'dart:typed_data';
 
 import 'package:keep/src/key/key.dart' show KeepKey;
 
@@ -23,7 +22,7 @@ abstract class KeepEncrypter {
 
   /// Synchronously encrypts the given [data].
   ///
-  /// Used by [KeepKey.readSync] and [KeepKey.writeSync] (if applicable).
+  /// Used by [KeepKey.readSync].
   /// If your encryption is purely async, throw [UnimplementedError].
   String encryptSync(String data);
 

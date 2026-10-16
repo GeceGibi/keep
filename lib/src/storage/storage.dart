@@ -21,7 +21,8 @@ abstract class KeepStorage {
 
   /// Synchronously reads content from storage.
   ///
-  /// This bypasses the async queue for external storage and may block the UI thread.
+  /// This bypasses the async queue for external storage and may block the UI
+  /// thread.
   V? readSync<V>(KeepKey<dynamic> key);
 
   /// Reads content from storage for the specified [key].
@@ -45,7 +46,8 @@ abstract class KeepStorage {
   /// Removes an entry by its storage key (storeName).
   Future<void> removeKey(String storeName);
 
-  /// Scans the storage and removes all entries marked with the **Removable** flag.
+  /// Scans the storage and removes all entries marked with the **Removable**
+  /// flag.
   ///
   /// Implementations should respect the binary metadata flag (Bit 0) ensuring
   /// efficient cleanup of temporary data without full content parsing.
